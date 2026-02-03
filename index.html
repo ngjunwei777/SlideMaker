@@ -3,332 +3,400 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UniDeck Pro: Course Builder</title>
+    <title>UniDeck Architect: Lesson Planner</title>
     <!-- PptxGenJS for PowerPoint Generation -->
     <script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #0f172a;
-            --secondary: #3b82f6;
-            --accent: #f59e0b;
-            --bg: #f1f5f9;
+            --primary: #2c3e50;
+            --secondary: #3b82f6; /* Modern Blue */
+            --accent: #10b981;    /* Green for success */
+            --bg: #f8fafc;
             --panel-bg: #ffffff;
+            --text: #334155;
             --border: #e2e8f0;
         }
 
-        body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: #333; }
-        
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Inter', 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--text); }
+
         /* HEADER */
-        header { background: var(--primary); color: white; padding: 0 1.5rem; height: 60px; display: flex; justify-content: space-between; align-items: center; }
-        .brand { font-size: 1.2rem; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
-        .badge { background: var(--accent); color: black; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; }
+        header { background: white; border-bottom: 1px solid var(--border); padding: 0 1.5rem; height: 60px; display: flex; justify-content: space-between; align-items: center; }
+        .brand { font-weight: 800; font-size: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        .brand i { color: var(--secondary); }
+        .nav-steps { display: flex; gap: 20px; font-size: 0.9rem; color: #94a3b8; }
+        .step.active { color: var(--secondary); font-weight: bold; border-bottom: 2px solid var(--secondary); }
         
-        .header-controls { display: flex; gap: 10px; }
-        .meta-input { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 5px 10px; border-radius: 4px; width: 120px; }
-        .meta-input::placeholder { color: rgba(255,255,255,0.5); }
+        /* WIZARD CONTAINER */
+        .wizard-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
+        .wizard-card { background: white; width: 100%; max-width: 700px; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+        .wizard-header { margin-bottom: 30px; text-align: center; }
+        .wizard-header h2 { margin: 0 0 10px 0; color: var(--primary); }
+        .wizard-header p { margin: 0; color: #64748b; }
 
-        /* BUTTONS */
-        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
-        .btn-primary { background: var(--secondary); color: white; }
-        .btn-primary:hover { background: #2563eb; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white; }
-        .btn-icon { padding: 6px; background: #eee; color: #555; }
+        /* FORM ELEMENTS */
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; color: var(--primary); }
+        input, textarea, select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; transition: border 0.2s; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--secondary); ring: 2px solid rgba(59,130,246,0.1); }
         
-        /* WORKSPACE GRID */
-        .workspace { display: flex; flex: 1; overflow: hidden; }
+        .activity-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .activity-card { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px; }
+        .activity-card:hover { background: #f1f5f9; }
+        .activity-card.selected { background: #eff6ff; border-color: var(--secondary); color: var(--secondary); font-weight: 600; }
+        
+        .btn-xl { width: 100%; padding: 15px; background: var(--secondary); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }
+        .btn-xl:hover { background: #2563eb; }
+        .btn-xl:disabled { background: #94a3b8; cursor: not-allowed; }
 
-        /* LEFT: SLIDE MANAGER */
-        .sidebar { width: 220px; background: #f8fafc; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .sidebar-header { padding: 10px; border-bottom: 1px solid var(--border); font-size: 0.8rem; font-weight: bold; color: #64748b; text-transform: uppercase; }
+        /* EDITOR UI (Hidden initially) */
+        .editor-workspace { display: none; flex: 1; height: calc(100vh - 60px); overflow: hidden; }
+        
+        .sidebar { width: 250px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
         .slide-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .thumb { padding: 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; background: #f8fafc; transition: all 0.2s; }
+        .thumb:hover { background: white; border-color: #cbd5e1; }
+        .thumb.active { border-color: var(--secondary); background: #eff6ff; border-left: 4px solid var(--secondary); }
+        .thumb-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .thumb-meta { font-size: 0.7rem; color: #64748b; display: flex; justify-content: space-between; }
         
-        .thumb { background: white; padding: 10px; border: 2px solid transparent; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); position: relative; }
-        .thumb:hover { border-color: #cbd5e1; }
-        .thumb.active { border-color: var(--secondary); box-shadow: 0 0 0 1px var(--secondary); }
-        .thumb-num { font-size: 0.7rem; font-weight: bold; color: #94a3b8; }
-        .thumb-title { font-size: 0.8rem; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-        .thumb-type { font-size: 0.65rem; color: #64748b; background: #f1f5f9; padding: 2px 4px; border-radius: 3px; align-self: flex-start; }
-
-        /* CENTER: EDITOR */
-        .editor { flex: 1; background: white; display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow-y: auto; }
-        .editor-toolbar { padding: 10px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
-        .editor-content { padding: 30px; max-width: 600px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 20px; }
-
-        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #334155; }
-        input[type="text"], textarea, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; transition: border 0.2s; box-sizing: border-box; }
-        input:focus, textarea:focus { outline: none; border-color: var(--secondary); }
-        textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
-
-        .symbol-bar { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
-        .sym-btn { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 0.9rem; }
-        .sym-btn:hover { background: #e2e8f0; }
-
-        /* IMAGE UPLOAD BOX */
-        .img-drop-zone { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 20px; text-align: center; color: #64748b; cursor: pointer; transition: all 0.2s; }
-        .img-drop-zone:hover { border-color: var(--secondary); background: #eff6ff; }
-        .img-preview { max-width: 100%; max-height: 150px; margin-top: 10px; border-radius: 4px; display: none; border: 1px solid #ddd; }
-
-        /* RIGHT: PREVIEW */
-        .preview-pane { flex: 1.2; background: #cbd5e1; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-        .preview-header { margin-bottom: 10px; font-size: 0.8rem; font-weight: bold; color: #475569; }
+        .main-stage { flex: 1; display: flex; flex-direction: column; padding: 30px; align-items: center; background: #f1f5f9; overflow-y: auto; }
         
-        .slide-frame {
-            background: white; width: 100%; aspect-ratio: 16/9; 
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            border-radius: 4px; padding: 40px; display: flex; flex-direction: column;
-            position: relative; overflow: hidden;
-        }
+        .slide-frame { background: white; width: 100%; max-width: 800px; aspect-ratio: 16/9; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); border-radius: 4px; padding: 40px; display: flex; flex-direction: column; position: relative; }
+        .slide-frame h2 { margin-top: 0; color: var(--primary); font-size: 2.2em; border-bottom: 3px solid var(--secondary); padding-bottom: 15px; margin-bottom: 20px; }
+        .slide-frame ul { font-size: 1.4em; line-height: 1.6; color: #334155; padding-left: 1.2em; }
+        
+        .notes-panel { width: 100%; max-width: 800px; margin-top: 20px; background: #fffbeb; border: 1px solid #fcd34d; padding: 15px; border-radius: 6px; }
+        .notes-header { font-size: 0.75rem; font-weight: bold; color: #b45309; text-transform: uppercase; margin-bottom: 5px; }
+        .notes-content { width: 100%; border: none; background: transparent; font-family: monospace; resize: vertical; min-height: 60px; outline: none; }
 
-        /* PREVIEW STYLES */
-        .slide-footer { position: absolute; bottom: 15px; right: 20px; font-size: 10px; color: #94a3b8; display: flex; gap: 15px; }
-        .prev-content h2 { margin-top: 0; color: var(--primary); font-size: 2em; border-bottom: 3px solid var(--accent); padding-bottom: 15px; margin-bottom: 20px; }
-        .prev-content li { font-size: 1.1em; margin-bottom: 10px; color: #334155; }
-        .prev-content .solution-box { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 15px; margin-top: 20px; font-size: 0.9em; color: #166534; display: block; }
-        .prev-content img { max-width: 100%; max-height: 250px; object-fit: contain; margin: 10px 0; border: 1px solid #eee; }
+        /* LOADING OVERLAY */
+        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 100; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .spinner { width: 50px; height: 50px; border: 4px solid #e2e8f0; border-top-color: var(--secondary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .progress-log { font-family: monospace; color: #64748b; margin-top: 10px; font-size: 0.9rem; }
 
+        /* API MODAL */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; }
+        .modal-card { background: white; padding: 30px; border-radius: 12px; width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
 
 <header>
     <div class="brand">
-        <span>UniDeck</span>
-        <span class="badge">PRO</span>
+        <i class="fas fa-layer-group"></i> UniDeck Architect
     </div>
-    <div class="header-controls">
-        <input type="text" id="courseCode" class="meta-input" placeholder="Course Code" value="CS101">
-        <input type="text" id="weekNum" class="meta-input" placeholder="Week #" value="Week 1">
-        
-        <div style="width: 1px; background: rgba(255,255,255,0.3); margin: 0 10px;"></div>
-
-        <button class="btn btn-outline" onclick="exportPPT('student')">🎓 Student PDF</button>
-        <button class="btn btn-success" onclick="exportPPT('lecturer')">👨‍🏫 Lecturer PPT</button>
+    <div class="nav-steps">
+        <span class="step active" id="step1">1. Define</span>
+        <span class="step" id="step2">2. Architect</span>
+        <span class="step" id="step3">3. Refine & Export</span>
+    </div>
+    <div>
+        <button onclick="openApiModal()" style="border:1px solid #ddd; background:white; padding:5px 10px; border-radius:4px; cursor:pointer;">
+            <i class="fas fa-key"></i> API Key
+        </button>
     </div>
 </header>
 
-<div class="workspace">
-    <!-- SIDEBAR -->
+<!-- STEP 1: WIZARD -->
+<div id="viewWizard" class="wizard-container">
+    <div class="wizard-card">
+        <div class="wizard-header">
+            <h2>Course Blueprint</h2>
+            <p>Define your lesson parameters to generate a pedagogical structure.</p>
+        </div>
+
+        <div class="form-group">
+            <label>Academic Topic / Lecture Title</label>
+            <input type="text" id="inpTopic" placeholder="e.g., Introduction to Behavioral Economics">
+        </div>
+
+        <div class="form-group">
+            <label>Learning Outcomes (What should students allow to do?)</label>
+            <textarea id="inpLO" rows="4" placeholder="- Understand the concept of...&#10;- Apply the formula for..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>Duration</label>
+                    <select id="inpDuration">
+                        <option value="1h">1 Hour (Standard Lecture)</option>
+                        <option value="2h">2 Hours (Lecture + Activity)</option>
+                        <option value="3h">3 Hours (Workshop)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Design Style</label>
+                    <select id="inpTheme">
+                        <option value="academic">Academic Clean (White/Blue)</option>
+                        <option value="modern">Modern Dark (Dark/Neon)</option>
+                        <option value="engineering">Engineering (Blueprint)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Included Lesson Activities</label>
+            <div class="activity-grid">
+                <div class="activity-card" onclick="toggleActivity(this, 'quiz')">
+                    <i class="fas fa-question-circle"></i> Pop Quizzes
+                </div>
+                <div class="activity-card" onclick="toggleActivity(this, 'discussion')">
+                    <i class="fas fa-comments"></i> Group Discussions
+                </div>
+                <div class="activity-card" onclick="toggleActivity(this, 'case')">
+                    <i class="fas fa-briefcase"></i> Case Study
+                </div>
+                <div class="activity-card" onclick="toggleActivity(this, 'summary')">
+                    <i class="fas fa-list-check"></i> Key Takeaways
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-xl" onclick="generateLessonPlan()">
+            <i class="fas fa-magic"></i> Generate Lesson Deck
+        </button>
+        <p style="text-align:center; color:#999; font-size:0.8rem; margin-top:10px;">
+            Note: If no API Key is set, a demo structure will be created.
+        </p>
+    </div>
+</div>
+
+<!-- STEP 3: EDITOR -->
+<div id="viewEditor" class="editor-workspace">
+    <!-- Sidebar -->
     <div class="sidebar">
-        <div class="sidebar-header">Slide Deck</div>
-        <div class="slide-list" id="slideList">
-            <!-- Thumbnails injected here -->
+        <div style="padding:15px; border-bottom:1px solid #e2e8f0; font-weight:bold; color:var(--primary);">
+            Slide Deck
+            <button onclick="restart()" style="float:right; font-size:0.7rem; background:none; border:none; color:red; cursor:pointer;">Reset</button>
         </div>
-        <div style="padding: 10px;">
-            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="addSlide()">+ New Slide</button>
-        </div>
-    </div>
-
-    <!-- EDITOR -->
-    <div class="editor">
-        <div class="editor-toolbar">
-            <span style="font-weight:bold; color:#475569;">Editor</span>
-            <button class="btn btn-icon" onclick="deleteSlide()" title="Delete Slide">🗑️</button>
-        </div>
-
-        <div class="editor-content">
-            <!-- Slide Type -->
-            <div class="form-group">
-                <label>Slide Type</label>
-                <select id="inputType" onchange="updateCurrentSlide()">
-                    <option value="theory">📖 Lecture Theory</option>
-                    <option value="tutorial">❓ Tutorial Question</option>
-                    <option value="discussion">💬 Class Discussion</option>
-                </select>
-            </div>
-
-            <!-- Title -->
-            <div class="form-group">
-                <label>Slide Title</label>
-                <input type="text" id="inputTitle" oninput="updateCurrentSlide()" placeholder="Topic Header...">
-            </div>
-
-            <!-- Image Upload -->
-            <div class="form-group">
-                <label>Visual Aid (Optional)</label>
-                <div class="img-drop-zone" onclick="document.getElementById('fileInput').click()">
-                    <span>Click to upload Image</span>
-                    <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleImageUpload(this)">
-                </div>
-                <img id="imgPreview" class="img-preview">
-                <button id="btnRemoveImg" class="btn btn-icon" style="display:none; margin-top:5px; width:100%;" onclick="removeImage()">Remove Image</button>
-            </div>
-
-            <!-- Content -->
-            <div class="form-group">
-                <label>Main Content / Question</label>
-                <div class="symbol-bar">
-                    <button class="sym-btn" onclick="insertSym('→')">→</button>
-                    <button class="sym-btn" onclick="insertSym('∴')">∴</button>
-                    <button class="sym-btn" onclick="insertSym('θ')">θ</button>
-                    <button class="sym-btn" onclick="insertSym('π')">π</button>
-                    <button class="sym-btn" onclick="insertSym('∑')">∑</button>
-                    <button class="sym-btn" onclick="insertSym('Δ')">Δ</button>
-                    <button class="sym-btn" onclick="insertSym('²')">²</button>
-                </div>
-                <textarea id="inputBody" oninput="updateCurrentSlide()" placeholder="- Key point 1..."></textarea>
-            </div>
-
-            <!-- Tutorial Solution / Speaker Notes -->
-            <div class="form-group">
-                <label id="lblExtra">Speaker Notes / Solution</label>
-                <textarea id="inputExtra" oninput="updateCurrentSlide()" style="background:#f0fdf4; border-color:#86efac;" placeholder="Hidden from students in tutorial mode..."></textarea>
-                <small style="color:#64748b; font-style:italic;">This content appears in Lecturer View but is hidden in Student View.</small>
-            </div>
+        <div class="slide-list" id="slideList"></div>
+        <div style="padding:10px;">
+            <button onclick="addSlide()" style="width:100%; padding:8px; border:1px solid #ccc; background:white; border-radius:4px; cursor:pointer;">+ Add Slide</button>
         </div>
     </div>
 
-    <!-- PREVIEW -->
-    <div class="preview-pane">
-        <div class="preview-header">LIVE PREVIEW (Lecturer View)</div>
-        <div class="slide-frame">
-            <div class="prev-content" id="previewContent">
-                <!-- Live content -->
-            </div>
-            <div class="slide-footer">
-                <span id="prevCourse">CS101</span>
-                <span id="prevWeek">Week 1</span>
-                <span>UniDeck Pro</span>
-            </div>
+    <!-- Main Stage -->
+    <div class="main-stage">
+        <div class="slide-frame" id="previewFrame"></div>
+        
+        <div class="notes-panel">
+            <div class="notes-header">Speaker Script & Pedagogical Notes</div>
+            <textarea id="inpNotes" class="notes-content" oninput="updateNotes()"></textarea>
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:10px;">
+            <button onclick="exportDeck('student')" style="padding:10px 20px; background:white; border:1px solid #ccc; border-radius:6px; cursor:pointer;">
+                <i class="fas fa-user-graduate"></i> Student PDF
+            </button>
+            <button onclick="exportDeck('lecturer')" style="padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:6px; cursor:pointer;">
+                <i class="fas fa-chalkboard-teacher"></i> Lecturer PPTX
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <h2 style="color:var(--primary)">Architecting Lesson Plan...</h2>
+    <div id="progressLog" class="progress-log">Analyzing Learning Outcomes...</div>
+</div>
+
+<!-- API MODAL -->
+<div id="apiModal" class="modal">
+    <div class="modal-card">
+        <h3>Gemini API Key</h3>
+        <p style="font-size:0.9rem; color:#64748b;">Required for AI generation. Without a key, a demo template will be used.</p>
+        <input type="password" id="apiKeyInput" placeholder="Paste key here...">
+        <div style="margin-top:15px; text-align:right;">
+            <button onclick="saveApiKey()" style="padding:8px 15px; background:var(--secondary); color:white; border:none; border-radius:4px; cursor:pointer;">Save</button>
+            <button onclick="closeApiModal()" style="padding:8px 15px; background:#ddd; border:none; border-radius:4px; cursor:pointer;">Close</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- STATE MANAGEMENT ---
-    let slides = [
-        { 
-            type: 'theory', 
-            title: 'Course Introduction', 
-            body: '- Welcome to the semester\n- Reviewing the syllabus',
-            extra: 'Note: Take attendance first.',
-            imgData: null 
-        },
-        { 
-            type: 'tutorial', 
-            title: 'Practice Problem 1', 
-            body: 'Calculate the velocity of an object in freefall after 5 seconds.\nAssuming g = 9.8 m/s².',
-            extra: 'Solution:\nv = u + at\nv = 0 + (9.8 * 5)\nv = 49 m/s',
-            imgData: null 
-        }
-    ];
+    // --- STATE ---
+    let apiKey = localStorage.getItem('unideck_gemini_key') || "";
+    let slides = [];
     let currentIdx = 0;
+    let selectedActivities = new Set();
 
     // --- INIT ---
-    function init() {
-        renderList();
-        loadSlide(0);
-        
-        // Listeners for meta inputs
-        document.getElementById('courseCode').addEventListener('input', updateFooter);
-        document.getElementById('weekNum').addEventListener('input', updateFooter);
+    function toggleActivity(el, type) {
+        el.classList.toggle('selected');
+        if (selectedActivities.has(type)) selectedActivities.delete(type);
+        else selectedActivities.add(type);
     }
 
-    // --- CORE LOGIC ---
-    function addSlide() {
-        slides.push({ 
-            type: 'theory', 
-            title: 'New Topic', 
-            body: '- Point 1', 
-            extra: '', 
-            imgData: null 
+    function openApiModal() { document.getElementById('apiModal').style.display = 'flex'; }
+    function closeApiModal() { document.getElementById('apiModal').style.display = 'none'; }
+    function saveApiKey() {
+        const key = document.getElementById('apiKeyInput').value.trim();
+        if(key) {
+            apiKey = key;
+            localStorage.setItem('unideck_gemini_key', key);
+            closeApiModal();
+            alert("API Key Saved!");
+        } else {
+            apiKey = "";
+            localStorage.removeItem('unideck_gemini_key');
+            closeApiModal();
+            alert("API Key cleared. Using demo mode.");
+        }
+    }
+
+    function restart() {
+        if(confirm("Start over? Unsaved changes will be lost.")) {
+            location.reload();
+        }
+    }
+
+    // --- GENERATION ENGINE ---
+    async function generateLessonPlan() {
+        const topic = document.getElementById('inpTopic').value;
+        const lo = document.getElementById('inpLO').value;
+        const duration = document.getElementById('inpDuration').value;
+        const activities = Array.from(selectedActivities).join(", ");
+        
+        if (!topic) return alert("Please enter a topic.");
+
+        // UI State
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        const log = document.getElementById('progressLog');
+
+        // FALLBACK: NO KEY -> DEMO MODE
+        if (!apiKey) {
+            log.innerText = "No API Key detected. Generating simulation...";
+            setTimeout(() => {
+                generateDemoPlan(topic, lo, activities);
+            }, 1500);
+            return;
+        }
+
+        // REAL AI GENERATION
+        try {
+            log.innerText = "Consulting pedagogical model...";
+            const prompt = `
+                Act as a University Curriculum Designer. Create a ${duration} lesson plan on "${topic}".
+                
+                Context:
+                - Learning Outcomes: ${lo}
+                - Required Activities: ${activities}
+                
+                Task:
+                Generate a structured slide deck JSON. 
+                Structure must include:
+                1. Title Slide
+                2. Learning Outcomes Slide
+                3. Content Slides (interleaved with activities)
+                4. Activity Slides (Polls/Case Studies/Discussions based on requirements)
+                5. Summary Slide
+                
+                Format:
+                Return ONLY valid JSON array:
+                [
+                    { 
+                        "type": "content" OR "activity" OR "title",
+                        "title": "Slide Title", 
+                        "body": "Bullet point 1\\nBullet point 2", 
+                        "notes": "Speaker script and instructions for the lecturer..." 
+                    }
+                ]
+            `;
+
+            log.innerText = "Generating content structure...";
+            const result = await callGemini(prompt);
+
+            if (Array.isArray(result)) {
+                transitionToEditor(result);
+            } else {
+                throw new Error("Invalid JSON returned from AI");
+            }
+
+        } catch (e) {
+            console.error(e);
+            document.getElementById('loadingOverlay').style.display = 'none';
+            alert("Generation Error: " + e.message + "\n\nTip: Check your API Key or try again.");
+        }
+    }
+
+    function generateDemoPlan(topic, lo, activities) {
+        // Fallback for users without API keys so the app still functions
+        const demoSlides = [
+            { type: "title", title: topic, body: "Instructor Name", notes: "Welcome students." },
+            { type: "content", title: "Learning Outcomes", body: lo || "- Understand core concepts\n- Apply theory", notes: "Outline the goals." },
+            { type: "content", title: "Introduction to " + topic, body: "- Definition and Scope\n- Historical Context\n- Why this matters", notes: "Start with a hook." },
+            { type: "activity", title: "Class Discussion", body: "Based on the reading, what are the key challenges?\n\nTake 5 minutes to discuss with your neighbor.", notes: "Walk around and listen to groups." },
+            { type: "content", title: "Core Theory", body: "- Principle 1: The foundation\n- Principle 2: The application\n- Principle 3: The outcome", notes: "Explain the main theory here." },
+            { type: "title", title: "Summary", body: "- Recap of main points\n- Next steps", notes: "Dismiss class." }
+        ];
+        transitionToEditor(demoSlides);
+    }
+
+    function transitionToEditor(newSlides) {
+        slides = newSlides;
+        currentIdx = 0;
+        
+        document.getElementById('viewWizard').style.display = 'none';
+        document.getElementById('viewEditor').style.display = 'flex';
+        document.getElementById('loadingOverlay').style.display = 'none';
+        
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step3').classList.add('active');
+
+        renderList();
+        loadSlide(0);
+    }
+
+    async function callGemini(promptText) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
         });
+        
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(`API Error (${response.status}): ${errData.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        const raw = data.candidates[0].content.parts[0].text;
+        const clean = raw.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(clean);
+    }
+
+    // --- EDITOR LOGIC ---
+    function loadSlide(index) {
+        currentIdx = index;
+        const s = slides[index];
+        document.getElementById('inpNotes').value = s.notes || "";
+        
+        Array.from(document.querySelectorAll('.thumb')).forEach((el, i) => {
+            el.classList.toggle('active', i === index);
+        });
+
+        renderPreview();
+    }
+
+    function updateNotes() {
+        slides[currentIdx].notes = document.getElementById('inpNotes').value;
+    }
+
+    function addSlide() {
+        slides.push({ title: "New Slide", body: "- New content", type: "content" });
         renderList();
         loadSlide(slides.length - 1);
     }
 
-    function deleteSlide() {
-        if(slides.length <= 1) return alert("Deck must have at least one slide.");
-        slides.splice(currentIdx, 1);
-        currentIdx = Math.max(0, currentIdx - 1);
-        renderList();
-        loadSlide(currentIdx);
-    }
-
-    function loadSlide(index) {
-        currentIdx = index;
-        const s = slides[index];
-
-        document.getElementById('inputType').value = s.type;
-        document.getElementById('inputTitle').value = s.title;
-        document.getElementById('inputBody').value = s.body;
-        document.getElementById('inputExtra').value = s.extra || "";
-        
-        // Handle Image UI
-        const imgPrev = document.getElementById('imgPreview');
-        const btnRem = document.getElementById('btnRemoveImg');
-        if(s.imgData) {
-            imgPrev.src = s.imgData;
-            imgPrev.style.display = 'block';
-            btnRem.style.display = 'block';
-        } else {
-            imgPrev.style.display = 'none';
-            btnRem.style.display = 'none';
-            imgPrev.src = "";
-        }
-
-        // Dynamic Label for "Extra" field
-        const lbl = document.getElementById('lblExtra');
-        if(s.type === 'tutorial') lbl.innerText = "Solution (Hidden for Students)";
-        else lbl.innerText = "Speaker Notes";
-
-        highlightThumb(index);
-        updatePreview();
-    }
-
-    function updateCurrentSlide() {
-        const s = slides[currentIdx];
-        s.type = document.getElementById('inputType').value;
-        s.title = document.getElementById('inputTitle').value;
-        s.body = document.getElementById('inputBody').value;
-        s.extra = document.getElementById('inputExtra').value;
-        
-        // Update list title text
-        const thumbs = document.getElementById('slideList').children;
-        if(thumbs[currentIdx]) {
-            thumbs[currentIdx].querySelector('.thumb-title').innerText = s.title;
-            thumbs[currentIdx].querySelector('.thumb-type').innerText = s.type.toUpperCase();
-        }
-
-        // Update Label
-        const lbl = document.getElementById('lblExtra');
-        if(s.type === 'tutorial') lbl.innerText = "Solution (Hidden for Students)";
-        else lbl.innerText = "Speaker Notes";
-
-        updatePreview();
-    }
-
-    // --- IMAGE HANDLING ---
-    function handleImageUpload(input) {
-        const file = input.files[0];
-        if(!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            slides[currentIdx].imgData = e.target.result;
-            loadSlide(currentIdx); // Reload UI
-        };
-        reader.readAsDataURL(file);
-        input.value = '';
-    }
-
-    function removeImage() {
-        slides[currentIdx].imgData = null;
-        loadSlide(currentIdx);
-    }
-
-    function insertSym(char) {
-        const textarea = document.getElementById('inputBody');
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const text = textarea.value;
-        textarea.value = text.substring(0, start) + char + text.substring(end);
-        textarea.focus();
-        textarea.selectionEnd = start + 1;
-        updateCurrentSlide();
-    }
-
-    // --- RENDERERS ---
     function renderList() {
         const list = document.getElementById('slideList');
         list.innerHTML = '';
@@ -337,142 +405,86 @@
             div.className = `thumb ${i === currentIdx ? 'active' : ''}`;
             div.onclick = () => loadSlide(i);
             div.innerHTML = `
-                <div class="thumb-type">${s.type.toUpperCase()}</div>
                 <div class="thumb-title">${s.title}</div>
-                <div class="thumb-num">Slide ${i+1}</div>
+                <div class="thumb-meta">
+                    <span>${s.type.toUpperCase()}</span>
+                    <span>#${i+1}</span>
+                </div>
             `;
             list.appendChild(div);
         });
     }
 
-    function highlightThumb(index) {
-        Array.from(document.getElementById('slideList').children).forEach((el, i) => {
-            el.classList.toggle('active', i === index);
-        });
-    }
-
-    function updatePreview() {
+    function renderPreview() {
         const s = slides[currentIdx];
-        const container = document.getElementById('previewContent');
+        const container = document.getElementById('previewFrame');
+        const theme = document.getElementById('inpTheme').value;
         
-        let html = `<h2>${s.title}</h2>`;
+        let bg = "white";
+        let text = "#334155";
+        let accent = "#3b82f6";
         
-        // Image
-        if(s.imgData) {
-            html += `<div style="text-align:center"><img src="${s.imgData}"></div>`;
+        if (theme === 'modern') { bg = "#1e293b"; text = "#f1f5f9"; accent = "#38bdf8"; }
+        if (theme === 'engineering') { bg = "#eff6ff"; text = "#1e3a8a"; accent = "#f59e0b"; }
+
+        if (s.type === 'activity') {
+            bg = theme === 'modern' ? "#312e81" : "#fff7ed"; 
+            if (theme === 'engineering') bg = "#f0fdf4"; 
         }
 
-        // Body bullets
-        if(s.body) {
-            html += `<ul>${s.body.split('\n').map(l => l.trim() ? `<li>${l.replace(/^-/,'')}</li>` : '').join('')}</ul>`;
+        container.style.background = bg;
+        container.style.color = text;
+
+        let html = `<h2 style="color:${text}; border-color:${accent}">${s.title}</h2>`;
+        
+        if (s.body) {
+            html += "<ul>";
+            s.body.split('\n').forEach(line => {
+                const l = line.replace(/^-/, '').trim();
+                if(l) html += `<li>${l}</li>`;
+            });
+            html += "</ul>";
         }
 
-        // Extra (Solution/Notes)
-        if(s.extra) {
-            const label = s.type === 'tutorial' ? "SOLUTION:" : "SPEAKER NOTE:";
-            html += `<div class="solution-box"><strong>${label}</strong><br>${s.extra.replace(/\n/g,'<br>')}</div>`;
+        if (s.type === 'activity') {
+            html += `<div style="margin-top:auto; padding:10px; background:${accent}; color:white; border-radius:4px; text-align:center; font-weight:bold;">CLASS ACTIVITY</div>`;
         }
 
         container.innerHTML = html;
     }
 
-    function updateFooter() {
-        document.getElementById('prevCourse').innerText = document.getElementById('courseCode').value;
-        document.getElementById('prevWeek').innerText = document.getElementById('weekNum').value;
-    }
-
-    // --- EXPORT LOGIC ---
-    function exportPPT(mode) {
+    // --- EXPORT ---
+    function exportDeck(audience) {
         let pres = new PptxGenJS();
-        
-        const course = document.getElementById('courseCode').value;
-        const week = document.getElementById('weekNum').value;
-
-        // Common Settings
         pres.layout = 'LAYOUT_16x9';
-        pres.author = 'UniDeck User';
-        pres.company = 'University';
-        pres.subject = `${course} - ${week}`;
+        const theme = document.getElementById('inpTheme').value;
+
+        let bg = "FFFFFF";
+        let text = "333333";
+        if (theme === 'modern') { bg = "1e293b"; text = "f1f5f9"; }
+        if (theme === 'engineering') { bg = "eff6ff"; text = "1e3a8a"; }
 
         slides.forEach((s, i) => {
             let slide = pres.addSlide();
             
-            // Design Config based on Type
-            let bgCol = "FFFFFF";
-            let titleCol = "0f172a";
-            
-            if(s.type === 'tutorial') { bgCol = "f0f9ff"; titleCol = "0369a1"; } // Blue tint for tutorials
-            if(s.type === 'discussion') { bgCol = "fff7ed"; titleCol = "c2410c"; } // Orange tint for discussion
-
-            slide.background = { color: bgCol };
-
-            // 1. Title
-            slide.addText(s.title, { 
-                x: 0.5, y: 0.4, w: "90%", h: 0.8, 
-                fontSize: 32, bold: true, color: titleCol, fontFace: "Arial"
-            });
-
-            let currentY = 1.3;
-
-            // 2. Image (if exists)
-            if(s.imgData) {
-                slide.addImage({ data: s.imgData, x: 0.5, y: currentY, w: 4, h: 3, sizing: { type: 'contain', w: 8, h: 3.5 } });
-                currentY += 3.6; // Push text down
+            if (s.type === 'activity' && audience === 'student') {
+                slide.background = { color: "FFFFFF" }; 
+            } else {
+                slide.background = { color: bg };
             }
 
-            // 3. Body Text
-            if(s.body) {
-                let bullets = s.body.split('\n').map(line => {
-                    return { text: line.replace(/^-/, '').trim(), options: { breakLine: true } };
-                });
-                slide.addText(bullets, {
-                    x: 0.5, y: currentY, w: "90%", h: 2.5,
-                    fontSize: 18, color: "333333", bullet: true, fontFace: "Arial", lineSpacing: 28
-                });
-            }
+            slide.addText(s.title, { x:0.5, y:0.5, w:"90%", fontSize:32, bold:true, color:text });
 
-            // 4. HANDLING NOTES vs SOLUTIONS based on MODE
-            if (s.extra && s.extra.trim() !== "") {
-                if (mode === 'lecturer') {
-                    // Lecturer View: Add to Speaker Notes AND visually on slide if it's a solution
-                    slide.addNotes(s.extra);
-                    
-                    if(s.type === 'tutorial') {
-                        // Add visible solution box for lecturer
-                        slide.addText(`SOLUTION: ${s.extra}`, {
-                            x: 0.5, y: 5.5, w: "90%", h: 1.5,
-                            fontSize: 14, color: "166534", fill: { color: "dcfce7" },
-                            fontFace: "Courier New" 
-                        });
-                    }
-                } else {
-                    // Student View:
-                    if(s.type === 'tutorial') {
-                        // Add a "Workspace" box for them to write in
-                        slide.addText("(Write your solution here...)", {
-                            x: 0.5, y: 5.5, w: "90%", h: 1.5,
-                            fontSize: 14, color: "94a3b8", 
-                            shape: pres.ShapeType.rect, 
-                            line: { color: "cbd5e1", width: 1, dashType: 'dash' }
-                        });
-                    }
-                    // Speaker notes are NOT added to student PPT
-                }
-            }
+            let bullets = s.body.split('\n').map(l => ({ text: l.replace(/^-/, '').trim(), options: { breakLine: true } }));
+            slide.addText(bullets, { x:0.5, y:1.8, w:"90%", h:4, fontSize:18, color:text, bullet:true, lineSpacing:28 });
 
-            // Footer
-            slide.addText(`${course} | ${week} | Page ${i+1}`, { 
-                x: 0.5, y: 6.8, w: "90%", h: 0.3, 
-                fontSize: 9, color: "94a3b8" 
-            });
+            if (audience === 'lecturer' && s.notes) {
+                slide.addNotes(s.notes);
+            }
         });
 
-        const filename = `${course}_${week}_${mode === 'student' ? 'Student_Copy' : 'Lecturer_Master'}.pptx`;
-        pres.writeFile({ fileName: filename });
+        pres.writeFile({ fileName: `Lesson_${audience}.pptx` });
     }
-
-    // Start
-    init();
 
 </script>
 </body>
