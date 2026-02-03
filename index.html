@@ -1,1105 +1,322 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>DeckOS — Standardized PowerPoint Deck Designer (Spec Builder)</title>
-  <meta name="theme-color" content="#0b0f1a" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniDeck: Lecture Builder</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --bg: #f4f7f6;
+            --text: #333;
+            --slide-bg: #ffffff;
+            --slide-ratio: 1.77; /* 16:9 Aspect Ratio */
+        }
 
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  <style>
-    /* Mobile safe-area padding */
-    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-    .safe-top { padding-top: env(safe-area-inset-top); }
+        /* HEADER */
+        header { background: var(--primary); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 1.2rem; }
+        .btn { background: var(--accent); border: none; color: white; padding: 0.5rem 1rem; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .btn:hover { opacity: 0.9; }
+        .btn-danger { background: #e74c3c; }
+        .btn-success { background: #27ae60; }
 
-    /* Smooth scrolling for side panels */
-    .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
-    .scrollbar-thin::-webkit-scrollbar-track { background: rgba(255,255,255,0.06); border-radius: 999px; }
+        /* MAIN EDITOR LAYOUT */
+        .workspace { display: flex; flex: 1; height: 100%; overflow: hidden; }
+        
+        /* SIDEBAR (Slide List) */
+        .sidebar { width: 250px; background: #e0e0e0; border-right: 1px solid #ccc; display: flex; flex-direction: column; }
+        .slide-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .slide-thumbnail { background: white; border: 2px solid transparent; margin-bottom: 10px; padding: 10px; cursor: pointer; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #888; position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .slide-thumbnail.active { border-color: var(--accent); }
+        .slide-num { position: absolute; top: 2px; left: 5px; font-weight: bold; color: #ccc; }
+        
+        /* EDITOR PANE */
+        .editor-pane { flex: 1; padding: 20px; background: var(--bg); display: flex; flex-direction: column; overflow-y: auto; border-right: 1px solid #ddd; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--primary); }
+        input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
+        textarea { height: 150px; resize: vertical; }
+        .note { font-size: 0.85rem; color: #666; margin-top: 5px; }
 
-    /* Drag handle cursor */
-    .drag-handle { cursor: grab; }
-    .dragging { opacity: 0.6; }
+        /* PREVIEW PANE */
+        .preview-pane { flex: 1.5; background: #ccc; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .slide-frame {
+            background: var(--slide-bg);
+            width: 90%;
+            aspect-ratio: var(--slide-ratio);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
 
-    /* Simple toast */
-    .toast { transition: transform 220ms ease, opacity 220ms ease; }
-  </style>
+        /* SLIDE STYLES */
+        .slide-content h2 { color: var(--primary); margin-top: 0; font-size: 2.5rem; }
+        .slide-content ul { font-size: 1.5rem; line-height: 1.6; color: var(--text); }
+        .slide-content p { font-size: 1.5rem; line-height: 1.6; }
+        .footer { position: absolute; bottom: 10px; right: 20px; font-size: 0.8rem; color: #999; }
+
+        /* PRESENTATION MODE OVERLAY */
+        #present-mode {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: black; z-index: 1000; display: none;
+            align-items: center; justify-content: center;
+        }
+        #present-slide {
+            background: white; width: 80vw; aspect-ratio: var(--slide-ratio);
+            padding: 5vw; display: flex; flex-direction: column; justify-content: center;
+            font-size: 1.5vw; /* Responsive font sizing */
+        }
+        #present-slide h2 { font-size: 3em; margin-bottom: 0.5em; color: var(--primary); }
+        #present-slide li { font-size: 1.5em; margin-bottom: 0.5em; }
+        #present-slide p { font-size: 1.5em; }
+        .controls { position: fixed; bottom: 20px; right: 20px; opacity: 0; transition: opacity 0.3s; }
+        #present-mode:hover .controls { opacity: 1; }
+
+    </style>
 </head>
+<body>
 
-<body class="bg-slate-950 text-slate-100 safe-top safe-bottom">
-  <div class="min-h-screen">
-    <!-- Top Bar -->
-    <header class="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur">
-      <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <div class="h-9 w-9 rounded-2xl bg-gradient-to-br from-indigo-400 to-cyan-300 grid place-items-center shadow-sm">
-            <span class="text-slate-950 font-black">D</span>
-          </div>
-          <div class="leading-tight">
-            <div class="font-semibold">DeckOS</div>
-            <div class="text-xs text-slate-400">Topic-agnostic standardized deck spec builder</div>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <button id="btnHelp" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
-            Help
-          </button>
-          <button id="btnReset" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
-            Reset
-          </button>
-          <button id="btnDownloadSpec" class="px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-semibold text-sm">
-            Download Spec
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- Main -->
-    <main class="mx-auto max-w-7xl px-4 py-6">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        <!-- Left: Wizard -->
-        <section class="lg:col-span-7">
-          <!-- Stepper -->
-          <div class="flex items-center justify-between gap-2 mb-4">
-            <div class="flex items-center gap-2 text-sm">
-              <span id="stepBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                <span class="h-2 w-2 rounded-full bg-cyan-300"></span>
-                <span id="stepLabel">Step 1 of 4</span>
-              </span>
-              <span id="stepTitle" class="text-slate-200 font-medium">Deck Setup</span>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <button id="btnPrev" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm disabled:opacity-40 disabled:hover:bg-transparent" disabled>
-                Back
-              </button>
-              <button id="btnNext" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm">
-                Next
-              </button>
-            </div>
-          </div>
-
-          <!-- Wizard Cards -->
-          <div class="space-y-6">
-
-            <!-- Step 1: Setup -->
-            <div id="step1" class="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div class="flex items-start justify-between gap-4 mb-4">
-                <div>
-                  <h2 class="text-lg font-semibold">Deck Setup</h2>
-                  <p class="text-sm text-slate-400">Choose high-level variables. The system will enforce standardization rules.</p>
-                </div>
-                <div class="text-xs text-slate-400">
-                  <span class="px-2 py-1 rounded-full border border-white/10 bg-slate-950/50">Topic-agnostic</span>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label class="text-xs text-slate-300">Deck title</label>
-                  <input id="deckTitle" type="text" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40"
-                         placeholder="e.g., Teaching Strategy Micro-Training" />
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">Audience level</label>
-                  <select id="audience" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
-                    <option value="certificate">Certificate</option>
-                    <option value="diploma">Diploma</option>
-                    <option value="degree" selected>Degree</option>
-                    <option value="masters">Masters</option>
-                    <option value="doctorate">Doctorate</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">Duration</label>
-                  <select id="duration" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
-                    <option value="10">10 mins</option>
-                    <option value="15" selected>15 mins</option>
-                    <option value="30">30 mins</option>
-                    <option value="60">60 mins</option>
-                    <option value="90">90 mins</option>
-                    <option value="120">120 mins</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">Teaching strategy</label>
-                  <select id="strategy" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
-                    <option value="direct_instruction" selected>Direct Instruction</option>
-                    <option value="pbl">Problem-Based Learning (PBL)</option>
-                    <option value="collaborative">Collaborative Learning</option>
-                    <option value="inquiry">Inquiry-Based Learning</option>
-                    <option value="experiential">Experiential Learning</option>
-                    <option value="flipped">Flipped Classroom</option>
-                    <option value="scaffolded">Scaffolded Learning</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">Interactivity</label>
-                  <div class="mt-1 grid grid-cols-3 gap-2">
-                    <button data-interactivity="low" class="interactBtn px-3 py-2 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-white/5 text-sm">Low</button>
-                    <button data-interactivity="medium" class="interactBtn px-3 py-2 rounded-xl border border-white/10 bg-white/10 hover:bg-white/15 text-sm">Medium</button>
-                    <button data-interactivity="high" class="interactBtn px-3 py-2 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-white/5 text-sm">High</button>
-                  </div>
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">Assessment context</label>
-                  <select id="assessment" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
-                    <option value="none" selected>None</option>
-                    <option value="formative">Formative</option>
-                    <option value="summative">Summative</option>
-                    <option value="authentic">Authentic Assessment</option>
-                    <option value="viva">Viva/Oral</option>
-                    <option value="project">Project</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">GenAI policy</label>
-                  <select id="genaiPolicy" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
-                    <option value="allowed">Allowed</option>
-                    <option value="limited" selected>Limited</option>
-                    <option value="prohibited">Prohibited</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">Density</label>
-                  <select id="density" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
-                    <option value="airy">Airy</option>
-                    <option value="standard" selected>Standard</option>
-                    <option value="compact">Compact</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="mt-4 p-3 rounded-xl border border-white/10 bg-slate-950/40">
-                <div class="text-xs text-slate-400 mb-1">Strategy rules preview</div>
-                <div id="strategyRulesPreview" class="text-sm text-slate-200"></div>
-              </div>
-            </div>
-
-            <!-- Step 2: Inputs -->
-            <div id="step2" class="hidden rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div class="mb-4">
-                <h2 class="text-lg font-semibold">Learning Outcomes & Content</h2>
-                <p class="text-sm text-slate-400">Provide outcomes + topic outline. The builder will map outcomes to slides.</p>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4">
-                <div>
-                  <div class="flex items-center justify-between">
-                    <label class="text-xs text-slate-300">Learning outcomes (one per line)</label>
-                    <button id="btnAutoVerbHints" class="text-xs px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5">Verb check</button>
-                  </div>
-                  <textarea id="learningOutcomes" rows="6"
-                    class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40"
-                    placeholder="e.g.,\nAnalyse ...\nEvaluate ...\nDesign ..."></textarea>
-                  <div id="loHints" class="mt-2 text-xs text-slate-400"></div>
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">Topic & key content points</label>
-                  <textarea id="topicOutline" rows="6"
-                    class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40"
-                    placeholder="Write your key points/bullets. Keep it topic-agnostic if you prefer.\n\nExample:\n- Define the concept\n- Explain why it matters\n- Compare two approaches\n- Common misconceptions"></textarea>
-                </div>
-
-                <div>
-                  <label class="text-xs text-slate-300">References (optional; one per line)</label>
-                  <textarea id="references" rows="4"
-                    class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40"
-                    placeholder="Paste DOI/URL/APA reference lines here..."></textarea>
-
-                  <div class="mt-2 flex flex-wrap items-center gap-2">
-                    <label class="text-xs text-slate-400">Citation style</label>
-                    <select id="citationStyle" class="rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none text-sm">
-                      <option value="apa7" selected>APA 7</option>
-                      <option value="harvard">Harvard</option>
-                      <option value="ieee">IEEE</option>
-                    </select>
-                    <label class="text-xs text-slate-400 ml-2">Placement</label>
-                    <select id="citationPlacement" class="rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none text-sm">
-                      <option value="end" selected>End slide</option>
-                      <option value="distributed">Distributed (as needed)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="p-3 rounded-xl border border-white/10 bg-slate-950/40">
-                  <div class="flex items-center justify-between gap-3">
-                    <div>
-                      <div class="text-sm font-medium">Readiness meter</div>
-                      <div class="text-xs text-slate-400">LO coverage + time fit + references presence</div>
-                    </div>
-                    <div class="text-right">
-                      <div id="readinessScore" class="text-xl font-bold text-cyan-300">0%</div>
-                      <div id="readinessLabel" class="text-xs text-slate-400">Add learning outcomes to begin</div>
-                    </div>
-                  </div>
-                  <div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-                    <div id="readinessBar" class="h-2 w-0 bg-cyan-300"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 3: Blueprint -->
-            <div id="step3" class="hidden rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div class="flex items-start justify-between gap-4 mb-3">
-                <div>
-                  <h2 class="text-lg font-semibold">Slide Blueprint</h2>
-                  <p class="text-sm text-slate-400">A standardized flow generated from your choices. Drag to reorder, add/remove from allowed types.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button id="btnGenerateBlueprint" class="px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-semibold text-sm">
-                    Generate Blueprint
-                  </button>
-                  <button id="btnAddSlide" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
-                    Add Slide
-                  </button>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Blueprint list -->
-                <div class="rounded-2xl border border-white/10 bg-slate-950/40 overflow-hidden">
-                  <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                    <div class="text-sm font-medium">Deck Map</div>
-                    <div class="text-xs text-slate-400"><span id="slideCount">0</span> slides</div>
-                  </div>
-                  <div id="blueprintList" class="p-3 max-h-[520px] overflow-auto scrollbar-thin"></div>
-                </div>
-
-                <!-- Slide editor -->
-                <div class="rounded-2xl border border-white/10 bg-slate-950/40 overflow-hidden">
-                  <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                    <div class="text-sm font-medium">Selected Slide</div>
-                    <div class="text-xs text-slate-400" id="selectedSlideMeta">None</div>
-                  </div>
-                  <div class="p-4 space-y-4">
-                    <div>
-                      <label class="text-xs text-slate-300">Slide type</label>
-                      <select id="editSlideType" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled></select>
-                    </div>
-
-                    <div>
-                      <label class="text-xs text-slate-300">Title</label>
-                      <input id="editSlideTitle" type="text" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled />
-                    </div>
-
-                    <div>
-                      <label class="text-xs text-slate-300">Bullets (one per line)</label>
-                      <textarea id="editSlideBullets" rows="6" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled></textarea>
-                      <div id="slideHealth" class="mt-2 text-xs text-slate-400"></div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                      <div>
-                        <label class="text-xs text-slate-300">Time (mins)</label>
-                        <input id="editSlideTime" type="number" min="0.5" step="0.5" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled />
-                      </div>
-                      <div>
-                        <label class="text-xs text-slate-300">LO tag</label>
-                        <select id="editSlideLO" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled></select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label class="text-xs text-slate-300">Speaker notes</label>
-                      <textarea id="editSlideNotes" rows="5" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled></textarea>
-                    </div>
-
-                    <div class="flex flex-wrap gap-2">
-                      <button id="btnRemoveSlide" class="px-3 py-2 rounded-xl border border-red-400/30 text-red-200 hover:bg-red-400/10 text-sm disabled:opacity-40" disabled>
-                        Remove slide
-                      </button>
-                      <button id="btnDuplicateSlide" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm disabled:opacity-40" disabled>
-                        Duplicate
-                      </button>
-                      <button id="btnRegenerateSlide" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm disabled:opacity-40" disabled>
-                        Suggest improvements
-                      </button>
-                    </div>
-
-                    <div class="p-3 rounded-xl border border-white/10 bg-slate-950/60">
-                      <div class="flex items-center justify-between">
-                        <div class="text-sm font-medium">Time budget</div>
-                        <div class="text-xs text-slate-400"><span id="timeSum">0</span> / <span id="timeTarget">15</span> mins</div>
-                      </div>
-                      <div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-                        <div id="timeBar" class="h-2 w-0 bg-cyan-300"></div>
-                      </div>
-                      <div id="timeHint" class="mt-2 text-xs text-slate-400"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 4: Review & Export -->
-            <div id="step4" class="hidden rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div class="flex items-start justify-between gap-4 mb-3">
-                <div>
-                  <h2 class="text-lg font-semibold">Review & Export</h2>
-                  <p class="text-sm text-slate-400">Validate rules, LO coverage, engagement density, and export your GitHub-friendly deck spec.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button id="btnRunValidation" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm">
-                    Run validation
-                  </button>
-                  <button id="btnCopySpec" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
-                    Copy spec
-                  </button>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Validation panel -->
-                <div class="rounded-2xl border border-white/10 bg-slate-950/40 overflow-hidden">
-                  <div class="px-4 py-3 border-b border-white/10">
-                    <div class="text-sm font-medium">Quality gates</div>
-                    <div class="text-xs text-slate-400">Standardization checks (non-topic-specific).</div>
-                  </div>
-                  <div id="validationResults" class="p-4 space-y-3"></div>
-                </div>
-
-                <!-- Spec preview -->
-                <div class="rounded-2xl border border-white/10 bg-slate-950/40 overflow-hidden">
-                  <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                    <div>
-                      <div class="text-sm font-medium">Deck Spec (JSON)</div>
-                      <div class="text-xs text-slate-400">This is what you commit to GitHub.</div>
-                    </div>
-                    <button id="btnDownloadPdfPlaceholder" class="text-xs px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5" title="Placeholder (no PDF generation in this single-file demo)">
-                      PDF preview (placeholder)
-                    </button>
-                  </div>
-                  <pre id="specPreview" class="p-4 text-xs overflow-auto max-h-[520px] scrollbar-thin bg-slate-950/30"></pre>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </section>
-
-        <!-- Right: Dashboard / Catalog -->
-        <aside class="lg:col-span-5 space-y-6">
-          <!-- Dashboard -->
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <h3 class="font-semibold">Dashboard</h3>
-                <p class="text-sm text-slate-400">Live indicators as you build.</p>
-              </div>
-              <span class="text-xs px-2 py-1 rounded-full border border-white/10 bg-slate-950/40">v0.1</span>
-            </div>
-
-            <div class="mt-4 grid grid-cols-2 gap-3">
-              <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3">
-                <div class="text-xs text-slate-400">LO coverage</div>
-                <div class="mt-1 flex items-end justify-between">
-                  <div id="loCoveragePct" class="text-2xl font-bold text-cyan-300">0%</div>
-                  <div class="text-xs text-slate-400"><span id="loCount">0</span> LOs</div>
-                </div>
-                <div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-                  <div id="loCoverageBar" class="h-2 w-0 bg-cyan-300"></div>
-                </div>
-              </div>
-
-              <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3">
-                <div class="text-xs text-slate-400">Engagement density</div>
-                <div class="mt-1 flex items-end justify-between">
-                  <div id="engagementScore" class="text-2xl font-bold text-cyan-300">0</div>
-                  <div class="text-xs text-slate-400"><span id="engagementLabel">—</span></div>
-                </div>
-                <div class="mt-3 text-xs text-slate-400" id="engagementHint">Add slides to compute.</div>
-              </div>
-
-              <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3 col-span-2">
-                <div class="text-xs text-slate-400">Time fit</div>
-                <div class="mt-1 flex items-end justify-between">
-                  <div class="text-2xl font-bold text-cyan-300"><span id="timeFitPct">0</span>%</div>
-                  <div class="text-xs text-slate-400"><span id="timeFitDetail">0 / 15 mins</span></div>
-                </div>
-                <div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-                  <div id="timeFitBar" class="h-2 w-0 bg-cyan-300"></div>
-                </div>
-                <div class="mt-2 text-xs text-slate-400" id="timeFitHint">Generate a blueprint to estimate time.</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Slide Catalog (topic-agnostic) -->
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <h3 class="font-semibold">Slide Catalog</h3>
-                <p class="text-sm text-slate-400">Allowed building blocks (topic-agnostic).</p>
-              </div>
-              <button id="btnInsertRequired" class="text-xs px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5">
-                Insert required
-              </button>
-            </div>
-
-            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2" id="catalogCards"></div>
-
-            <div class="mt-4 p-3 rounded-xl border border-white/10 bg-slate-950/40">
-              <div class="text-xs text-slate-400 mb-1">Design rules (enforced)</div>
-              <ul class="text-sm text-slate-200 list-disc list-inside space-y-1">
-                <li>Max 6 bullets per slide</li>
-                <li>Max 2 lines per bullet (soft check)</li>
-                <li>Minimum font size: enforced by generator (future)</li>
-                <li>Every LO mapped to ≥ 1 slide</li>
-                <li>Engagement at least every 15 mins (warning-based)</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Quick actions -->
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h3 class="font-semibold">Quick actions</h3>
-            <p class="text-sm text-slate-400">Build faster with guardrails.</p>
-            <div class="mt-4 flex flex-wrap gap-2">
-              <button id="btnAutoMapLOs" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
-                Auto-map LOs
-              </button>
-              <button id="btnAutoNotes" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
-                Add facilitator notes
-              </button>
-              <button id="btnSuggestEngagement" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
-                Add engagement slide
-              </button>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </main>
-  </div>
-
-  <!-- Help Modal -->
-  <div id="helpModal" class="hidden fixed inset-0 z-40">
-    <div class="absolute inset-0 bg-black/60"></div>
-    <div class="absolute inset-x-0 top-10 mx-auto max-w-2xl px-4">
-      <div class="rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-xl">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <div class="text-lg font-semibold">How this demo works</div>
-            <div class="text-sm text-slate-400 mt-1">
-              This single-file app builds a <span class="text-slate-200 font-medium">deck specification</span> (JSON) that you can commit to GitHub.
-              A future generator can convert this spec into PPTX/PDF using your standard template.
-            </div>
-          </div>
-          <button id="btnCloseHelp" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">Close</button>
-        </div>
-
-        <div class="mt-4 space-y-3 text-sm text-slate-200">
-          <div class="p-3 rounded-xl bg-white/5 border border-white/10">
-            <div class="font-medium mb-1">Tip: Standardization without rigidity</div>
-            <ul class="list-disc list-inside text-slate-300 space-y-1">
-              <li>Let users choose variables; enforce slide types and rules.</li>
-              <li>Use warnings (not hard errors) for pedagogy rules, except LO coverage.</li>
-              <li>Store content as JSON/YAML in GitHub and regenerate decks deterministically.</li>
-            </ul>
-          </div>
-          <div class="p-3 rounded-xl bg-white/5 border border-white/10">
-            <div class="font-medium mb-1">What’s not included (yet)</div>
-            <ul class="list-disc list-inside text-slate-300 space-y-1">
-              <li>PPTX generation</li>
-              <li>Template theming and brand assets</li>
-              <li>Licensing-safe image suggestions</li>
-            </ul>
-          </div>
-        </div>
-
-      </div>
+<header>
+    <h1>UniDeck Creator</h1>
+    <div>
+        <button class="btn" onclick="addSlide()">+ New Slide</button>
+        <button class="btn btn-success" onclick="startPresentation()">▶ Present</button>
     </div>
-  </div>
+</header>
 
-  <!-- Add Slide Modal -->
-  <div id="addSlideModal" class="hidden fixed inset-0 z-40">
-    <div class="absolute inset-0 bg-black/60"></div>
-    <div class="absolute inset-x-0 top-14 mx-auto max-w-xl px-4">
-      <div class="rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-xl">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <div class="text-lg font-semibold">Add a slide</div>
-            <div class="text-sm text-slate-400 mt-1">Choose a slide type and insert it into the deck map.</div>
-          </div>
-          <button id="btnCloseAddSlide" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">Close</button>
-        </div>
-
-        <div class="mt-4 space-y-3">
-          <label class="text-xs text-slate-300">Slide type</label>
-          <select id="addSlideType" class="w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none"></select>
-
-          <div class="flex items-center justify-end gap-2 pt-2">
-            <button id="btnAddSlideConfirm" class="px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-semibold text-sm">
-              Insert
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast -->
-  <div id="toast" class="toast fixed bottom-4 left-1/2 -translate-x-1/2 translate-y-6 opacity-0 z-50 px-4 py-2 rounded-xl border border-white/10 bg-slate-950/90 text-sm"></div>
-
-  <script>
-    /**********************
-     * Topic-agnostic spec builder
-     * - Generates a GitHub-friendly JSON spec
-     * - Provides slide blueprint, LO mapping, rule checks
-     **********************/
-
-    // Slide catalog (topic-agnostic)
-    const SLIDE_TYPES = [
-      { key: "title_context", name: "Title & Context", group: "Foundation", engagement: false, required: true,
-        defaultTitle: "Session title & context",
-        defaultBullets: ["Audience & level", "Duration & strategy", "Why this matters (1 line)"] },
-      { key: "learning_outcomes", name: "Learning Outcomes", group: "Foundation", engagement: false, required: true,
-        defaultTitle: "Learning outcomes",
-        defaultBullets: ["By the end, you will be able to…"] },
-      { key: "roadmap", name: "Session Roadmap", group: "Foundation", engagement: false, required: true,
-        defaultTitle: "How we’ll get there",
-        defaultBullets: ["Build concepts", "Engage & check understanding", "Apply & reflect"] },
-
-      { key: "concept_overview", name: "Concept Overview", group: "Knowledge", engagement: false, required: false,
-        defaultTitle: "Core concept",
-        defaultBullets: ["Definition (plain language)", "Key idea (1 sentence)", "Common misconception (optional)"] },
-      { key: "concept_deepening", name: "Concept Deepening", group: "Knowledge", engagement: false, required: false,
-        defaultTitle: "Going deeper",
-        defaultBullets: ["Breakdown into parts", "Mechanism / rationale", "Implications"] },
-      { key: "framework_model", name: "Framework / Process / Model", group: "Knowledge", engagement: false, required: false,
-        defaultTitle: "A useful framework",
-        defaultBullets: ["Step 1", "Step 2", "Step 3"] },
-
-      { key: "guided_question", name: "Guided Question", group: "Engagement", engagement: true, required: false,
-        defaultTitle: "Think first",
-        defaultBullets: ["Prompt/question", "What to notice", "1-minute individual think"] },
-      { key: "activity_task", name: "Activity / Task", group: "Engagement", engagement: true, required: false,
-        defaultTitle: "Do the task",
-        defaultBullets: ["Instructions", "Output (what to produce)", "Time box & roles"] },
-      { key: "check_understanding", name: "Check for Understanding", group: "Engagement", engagement: true, required: false,
-        defaultTitle: "Quick check",
-        defaultBullets: ["MCQ / short answer prompt", "Expected reasoning (for facilitator)", "Common errors"] },
-
-      { key: "application_example", name: "Application / Example", group: "Transfer", engagement: false, required: false,
-        defaultTitle: "Apply it",
-        defaultBullets: ["Scenario (generic)", "Apply the concept", "What changes if constraints change?"] },
-      { key: "compare_evaluate", name: "Compare / Evaluate", group: "Transfer", engagement: true, required: false,
-        defaultTitle: "Compare approaches",
-        defaultBullets: ["Option A vs B", "Trade-offs", "Decision criteria"] },
-      { key: "reflection", name: "Reflection / Metacognition", group: "Transfer", engagement: true, required: true,
-        defaultTitle: "Reflect",
-        defaultBullets: ["What changed in your thinking?", "What still feels unclear?", "Next step"] },
-
-      { key: "assessment_alignment", name: "Assessment Alignment", group: "Academic Practice", engagement: false, required: false,
-        defaultTitle: "Assessment alignment",
-        defaultBullets: ["What evidence of learning looks like", "Criteria / rubric lens", "Common pitfalls"] },
-      { key: "genai_practice", name: "Ethics / AI / Academic Practice", group: "Academic Practice", engagement: false, required: false,
-        defaultTitle: "GenAI & academic practice",
-        defaultBullets: ["What’s allowed", "What’s not allowed", "How to cite/use responsibly"] },
-      { key: "references_slide", name: "References", group: "Academic Practice", engagement: false, required: false,
-        defaultTitle: "References",
-        defaultBullets: ["(Auto-filled)"] },
-    ];
-
-    // Strategy rules (topic-agnostic)
-    const STRATEGY_RULES = {
-      direct_instruction: {
-        name: "Direct Instruction",
-        requiredKeys: ["learning_outcomes", "concept_overview", "check_understanding", "reflection"],
-        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "concept_overview", "concept_deepening", "check_understanding", "application_example", "reflection"],
-        engagementEveryMins: 15
-      },
-      pbl: {
-        name: "Problem-Based Learning (PBL)",
-        requiredKeys: ["learning_outcomes", "activity_task", "guided_question", "reflection"],
-        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "activity_task", "guided_question", "concept_overview", "framework_model", "application_example", "reflection"],
-        engagementEveryMins: 15
-      },
-      collaborative: {
-        name: "Collaborative Learning",
-        requiredKeys: ["learning_outcomes", "activity_task", "compare_evaluate", "reflection"],
-        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "guided_question", "activity_task", "compare_evaluate", "check_understanding", "reflection"],
-        engagementEveryMins: 15
-      },
-      inquiry: {
-        name: "Inquiry-Based Learning",
-        requiredKeys: ["learning_outcomes", "guided_question", "framework_model", "reflection"],
-        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "guided_question", "concept_overview", "framework_model", "check_understanding", "reflection"],
-        engagementEveryMins: 15
-      },
-      experiential: {
-        name: "Experiential Learning",
-        requiredKeys: ["learning_outcomes", "activity_task", "reflection", "application_example"],
-        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "activity_task", "reflection", "concept_overview", "application_example", "check_understanding"],
-        engagementEveryMins: 15
-      },
-      flipped: {
-        name: "Flipped Classroom",
-        requiredKeys: ["learning_outcomes", "check_understanding", "activity_task", "reflection"],
-        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "check_understanding", "activity_task", "application_example", "compare_evaluate", "reflection"],
-        engagementEveryMins: 15
-      },
-      scaffolded: {
-        name: "Scaffolded Learning",
-        requiredKeys: ["learning_outcomes", "concept_overview", "concept_deepening", "application_example"],
-        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "concept_overview", "concept_deepening", "guided_question", "application_example", "reflection"],
-        engagementEveryMins: 15
-      }
-    };
-
-    // Default time allocations by duration (simple heuristic)
-    function getDefaultSlideTime(durationMins) {
-      const d = Number(durationMins);
-      if (d <= 10) return 1.0;
-      if (d <= 15) return 1.5;
-      if (d <= 30) return 2.0;
-      if (d <= 60) return 3.0;
-      if (d <= 90) return 3.5;
-      return 4.0;
-    }
-
-    // Simple Bloom verb list (not exhaustive)
-    const BLOOM_VERBS = [
-      "define","describe","identify","explain","summarise","summarize","apply","analyse","analyze","evaluate","create","design",
-      "compare","contrast","justify","interpret","synthesise","synthesize","critique","demonstrate","construct","formulate"
-    ];
-
-    // App state
-    const state = {
-      step: 1,
-      interactivity: "medium",
-      deck: {
-        meta: {
-          title: "",
-          audience: "degree",
-          duration_mins: 15,
-          strategy: "direct_instruction",
-          interactivity: "medium",
-          assessment_context: "none",
-          genai_policy: "limited",
-          density: "standard",
-          citation_style: "apa7",
-          citation_placement: "end",
-          design_system: {
-            name: "DeckOS Standard",
-            version: "1.0.0",
-            rules: {
-              max_bullets_per_slide: 6,
-              max_chars_per_bullet_soft: 120,
-              engagement_every_mins: 15
-            }
-          },
-          created_at: new Date().toISOString()
-        },
-        inputs: {
-          learning_outcomes: [],
-          topic_outline: [],
-          references: []
-        },
-        slides: []
-      },
-      selectedSlideId: null
-    };
-
-    // Elements
-    const el = (id) => document.getElementById(id);
-    const stepEls = [el("step1"), el("step2"), el("step3"), el("step4")];
-
-    // Step controls
-    const btnPrev = el("btnPrev");
-    const btnNext = el("btnNext");
-    const stepLabel = el("stepLabel");
-    const stepTitle = el("stepTitle");
-
-    // Setup fields
-    const deckTitle = el("deckTitle");
-    const audience = el("audience");
-    const duration = el("duration");
-    const strategy = el("strategy");
-    const assessment = el("assessment");
-    const genaiPolicy = el("genaiPolicy");
-    const density = el("density");
-    const strategyRulesPreview = el("strategyRulesPreview");
-
-    // Step2 fields
-    const learningOutcomes = el("learningOutcomes");
-    const topicOutline = el("topicOutline");
-    const references = el("references");
-    const citationStyle = el("citationStyle");
-    const citationPlacement = el("citationPlacement");
-    const readinessScore = el("readinessScore");
-    const readinessLabel = el("readinessLabel");
-    const readinessBar = el("readinessBar");
-    const loHints = el("loHints");
-
-    // Blueprint
-    const btnGenerateBlueprint = el("btnGenerateBlueprint");
-    const btnAddSlide = el("btnAddSlide");
-    const blueprintList = el("blueprintList");
-    const slideCount = el("slideCount");
-
-    // Editor
-    const selectedSlideMeta = el("selectedSlideMeta");
-    const editSlideType = el("editSlideType");
-    const editSlideTitle = el("editSlideTitle");
-    const editSlideBullets = el("editSlideBullets");
-    const editSlideTime = el("editSlideTime");
-    const editSlideLO = el("editSlideLO");
-    const editSlideNotes = el("editSlideNotes");
-    const btnRemoveSlide = el("btnRemoveSlide");
-    const btnDuplicateSlide = el("btnDuplicateSlide");
-    const btnRegenerateSlide = el("btnRegenerateSlide");
-    const slideHealth = el("slideHealth");
-
-    // Time budget
-    const timeSum = el("timeSum");
-    const timeTarget = el("timeTarget");
-    const timeBar = el("timeBar");
-    const timeHint = el("timeHint");
-
-    // Dashboard
-    const loCoveragePct = el("loCoveragePct");
-    const loCoverageBar = el("loCoverageBar");
-    const loCount = el("loCount");
-    const engagementScore = el("engagementScore");
-    const engagementLabel = el("engagementLabel");
-    const engagementHint = el("engagementHint");
-    const timeFitPct = el("timeFitPct");
-    const timeFitBar = el("timeFitBar");
-    const timeFitDetail = el("timeFitDetail");
-    const timeFitHint = el("timeFitHint");
-
-    // Catalog
-    const catalogCards = el("catalogCards");
-    const btnInsertRequired = el("btnInsertRequired");
-
-    // Review
-    const btnRunValidation = el("btnRunValidation");
-    const validationResults = el("validationResults");
-    const specPreview = el("specPreview");
-    const btnCopySpec = el("btnCopySpec");
-
-    // Global actions
-    const btnDownloadSpec = el("btnDownloadSpec");
-    const btnReset = el("btnReset");
-    const btnHelp = el("btnHelp");
-
-    // Quick actions
-    const btnAutoMapLOs = el("btnAutoMapLOs");
-    const btnAutoNotes = el("btnAutoNotes");
-    const btnSuggestEngagement = el("btnSuggestEngagement");
-    const btnAutoVerbHints = el("btnAutoVerbHints");
-
-    // Modals
-    const helpModal = el("helpModal");
-    const btnCloseHelp = el("btnCloseHelp");
-
-    const addSlideModal = el("addSlideModal");
-    const btnCloseAddSlide = el("btnCloseAddSlide");
-    const addSlideType = el("addSlideType");
-    const btnAddSlideConfirm = el("btnAddSlideConfirm");
-
-    // Toast
-    const toast = el("toast");
-
-    function showToast(message) {
-      toast.textContent = message;
-      toast.style.opacity = "1";
-      toast.style.transform = "translate(-50%, 0)";
-      setTimeout(() => {
-        toast.style.opacity = "0";
-        toast.style.transform = "translate(-50%, 1.5rem)";
-      }, 1600);
-    }
-
-    function uid() {
-      return "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
-    }
-
-    function setStep(n) {
-      state.step = Math.max(1, Math.min(4, n));
-      stepEls.forEach((s, idx) => s.classList.toggle("hidden", idx !== (state.step - 1)));
-
-      btnPrev.disabled = state.step === 1;
-      btnNext.textContent = state.step === 4 ? "Finish" : "Next";
-
-      const titles = ["Deck Setup", "Inputs", "Blueprint", "Review & Export"];
-      stepLabel.textContent = `Step ${state.step} of 4`;
-      stepTitle.textContent = titles[state.step - 1];
-
-      renderAll();
-    }
-
-    // Parse inputs
-    function parseLines(text) {
-      return text
-        .split("\n")
-        .map(s => s.trim())
-        .filter(Boolean);
-    }
-
-    function syncMetaFromUI() {
-      state.deck.meta.title = deckTitle.value.trim() || "Untitled Deck";
-      state.deck.meta.audience = audience.value;
-      state.deck.meta.duration_mins = Number(duration.value);
-      state.deck.meta.strategy = strategy.value;
-      state.deck.meta.interactivity = state.interactivity;
-      state.deck.meta.assessment_context = assessment.value;
-      state.deck.meta.genai_policy = genaiPolicy.value;
-      state.deck.meta.density = density.value;
-      state.deck.meta.citation_style = citationStyle.value;
-      state.deck.meta.citation_placement = citationPlacement.value;
-
-      // Keep engagement rule in sync
-      state.deck.meta.design_system.rules.engagement_every_mins = STRATEGY_RULES[state.deck.meta.strategy].engagementEveryMins || 15;
-    }
-
-    function syncInputsFromUI() {
-      state.deck.inputs.learning_outcomes = parseLines(learningOutcomes.value);
-      state.deck.inputs.topic_outline = parseLines(topicOutline.value);
-      state.deck.inputs.references = parseLines(references.value);
-    }
-
-    function renderStrategyRulesPreview() {
-      const rules = STRATEGY_RULES[state.deck.meta.strategy];
-      const requiredNames = rules.requiredKeys
-        .map(k => SLIDE_TYPES.find(s => s.key === k)?.name)
-        .filter(Boolean);
-
-      strategyRulesPreview.innerHTML = `
-        <div class="flex flex-col gap-1">
-          <div class="text-sm"><span class="text-slate-400">Strategy:</span> <span class="font-medium">${rules.name}</span></div>
-          <div class="text-sm"><span class="text-slate-400">Required slide types:</span> ${requiredNames.join(", ") || "—"}</div>
-          <div class="text-sm"><span class="text-slate-400">Engagement rule:</span> at least every ${rules.engagementEveryMins} mins (warning-based)</div>
-        </div>
-      `;
-    }
-
-    function renderCatalog() {
-      catalogCards.innerHTML = "";
-      SLIDE_TYPES.forEach(st => {
-        const card = document.createElement("button");
-        card.className = "text-left p-3 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-white/5";
-        card.innerHTML = `
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <div class="text-sm font-medium">${st.name}</div>
-              <div class="text-xs text-slate-400">${st.group}${st.engagement ? " • engagement" : ""}${st.required ? " • required" : ""}</div>
+<div class="workspace">
+    <div class="sidebar">
+        <div class="slide-list" id="slideListContainer">
             </div>
-            <span class="text-xs px-2 py-1 rounded-full border border-white/10 bg-slate-950/60">Add</span>
-          </div>
-        `;
-        card.addEventListener("click", () => {
-          if (state.deck.slides.length === 0) setStep(3);
-          addSlide(st.key);
-          showToast(`Added: ${st.name}`);
+    </div>
+
+    <div class="editor-pane">
+        <h2>Edit Slide</h2>
+        <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="inputTitle" oninput="updateCurrentSlide()" placeholder="e.g. Introduction to Calculus">
+        </div>
+        <div class="form-group">
+            <label>Body Content (Bullet Points)</label>
+            <textarea id="inputBody" oninput="updateCurrentSlide()" placeholder="Enter text here...&#10;- Use hyphens for bullets"></textarea>
+            <p class="note">Tip: Start lines with "-" to create bullet points.</p>
+        </div>
+        <div class="form-group">
+            <label>Slide Layout</label>
+            <select id="inputLayout" onchange="updateCurrentSlide()" style="width:100%; padding:10px;">
+                <option value="standard">Title & Bullets</option>
+                <option value="center">Centered Heading</option>
+            </select>
+        </div>
+        <div style="margin-top:auto;">
+            <button class="btn btn-danger" onclick="deleteSlide()">Delete Slide</button>
+        </div>
+    </div>
+
+    <div class="preview-pane">
+        <div class="slide-frame" id="previewFrame">
+            <div class="slide-content" id="previewContent">
+                </div>
+            <div class="footer">UniDeck v1.0</div>
+        </div>
+    </div>
+</div>
+
+<div id="present-mode">
+    <div id="present-slide">
+        </div>
+    <div class="controls">
+        <button class="btn" onclick="prevSlide()">❮ Prev</button>
+        <button class="btn" onclick="nextSlide()">Next ❯</button>
+        <button class="btn btn-danger" onclick="exitPresentation()">Exit</button>
+    </div>
+</div>
+
+<script>
+    // --- STATE MANAGEMENT ---
+    let slides = [
+        { title: "Welcome to Class", body: "- Introduction to the topic\n- Key learning objectives\n- Assessment criteria", layout: "standard" },
+        { title: "Today's Agenda", body: "1. Theory Review\n2. Case Studies\n3. Group Discussion", layout: "standard" }
+    ];
+    let currentIndex = 0;
+    let isPresenting = false;
+
+    // --- DOM ELEMENTS ---
+    const titleInput = document.getElementById('inputTitle');
+    const bodyInput = document.getElementById('inputBody');
+    const layoutInput = document.getElementById('inputLayout');
+    const previewContent = document.getElementById('previewContent');
+    const listContainer = document.getElementById('slideListContainer');
+    const presentMode = document.getElementById('present-mode');
+    const presentSlideContent = document.getElementById('present-slide');
+
+    // --- INITIALIZATION ---
+    function init() {
+        renderList();
+        loadSlide(0);
+    }
+
+    // --- CORE FUNCTIONS ---
+    function addSlide() {
+        slides.push({ title: "New Slide", body: "- Add content here", layout: "standard" });
+        renderList();
+        loadSlide(slides.length - 1);
+    }
+
+    function deleteSlide() {
+        if (slides.length <= 1) return alert("You must have at least one slide.");
+        slides.splice(currentIndex, 1);
+        currentIndex = Math.max(0, currentIndex - 1);
+        renderList();
+        loadSlide(currentIndex);
+    }
+
+    function loadSlide(index) {
+        currentIndex = index;
+        const slide = slides[index];
+        
+        // Populate inputs
+        titleInput.value = slide.title;
+        bodyInput.value = slide.body;
+        layoutInput.value = slide.layout;
+
+        // Update UI highlights
+        document.querySelectorAll('.slide-thumbnail').forEach((el, i) => {
+            el.classList.toggle('active', i === index);
         });
-        catalogCards.appendChild(card);
-      });
+
+        renderPreview();
     }
 
-    function computeReadiness() {
-      // Basic: LOs present = 50, topic outline = 30, references = 20 (optional)
-      const lo = state.deck.inputs.learning_outcomes.length;
-      const to = state.deck.inputs.topic_outline.length;
-      const ref = state.deck.inputs.references.length;
-
-      let score = 0;
-      if (lo > 0) score += 50;
-      if (to > 0) score += 30;
-      if (ref > 0) score += 20;
-
-      // If GenAI policy is limited/allowed, references slightly more valuable (soft)
-      if ((state.deck.meta.genai_policy === "allowed" || state.deck.meta.genai_policy === "limited") && ref > 0) {
-        score = Math.min(100, score + 5);
-      }
-
-      let label = "Add learning outcomes to begin";
-      if (score >= 50 && score < 80) label = "Good start — add topic points & refine outcomes";
-      if (score >= 80) label = "Ready — generate blueprint";
-
-      return { score: Math.min(100, score), label };
+    function updateCurrentSlide() {
+        slides[currentIndex].title = titleInput.value;
+        slides[currentIndex].body = bodyInput.value;
+        slides[currentIndex].layout = layoutInput.value;
+        renderListTextOnly(); // Optimization: don't re-render whole DOM, just text
+        renderPreview();
     }
 
-    function renderReadiness() {
-      const { score, label } = computeReadiness();
-      readinessScore.textContent = `${score}%`;
-      readinessLabel.textContent = label;
-      readinessBar.style.width = `${score}%`;
+    // --- RENDERING ---
+    function formatBodyText(text) {
+        // Simple parser: turns lines starting with "-" into li, others into p
+        if (!text) return "";
+        let html = "";
+        let inList = false;
+        
+        const lines = text.split('\n');
+        
+        lines.forEach(line => {
+            if (line.trim().startsWith('-')) {
+                if (!inList) { html += "<ul>"; inList = true; }
+                html += `<li>${line.trim().substring(1)}</li>`;
+            } else {
+                if (inList) { html += "</ul>"; inList = false; }
+                if (line.trim() !== "") html += `<p>${line}</p>`;
+            }
+        });
+        if (inList) html += "</ul>";
+        return html;
     }
 
-    function bloomVerbHint(loText) {
-      const s = (loText || "").trim().toLowerCase();
-      const firstWord = s.split(/\s+/)[0] || "";
-      const ok = BLOOM_VERBS.includes(firstWord);
-      return { firstWord, ok };
-    }
+    function renderPreview(targetElement = previewContent) {
+        const slide = slides[currentIndex];
+        let content = "";
 
-    function renderLOHints() {
-      const los = state.deck.inputs.learning_outcomes;
-      if (!los.length) {
-        loHints.textContent = "Tip: Start each LO with an action verb (e.g., Analyse, Evaluate, Design).";
-        return;
-      }
-      const issues = [];
-      los.forEach((line, idx) => {
-        const { firstWord, ok } = bloomVerbHint(line);
-        if (!ok) issues.push(`LO${idx + 1}: starts with “${firstWord || "—"}” (consider an action verb)`);
-      });
-      loHints.innerHTML = issues.length
-        ? `<span class="text-amber-200">Verb check:</span> ${issues.join(" • ")}`
-        : `<span class="text-cyan-300">Verb check:</span> Looks good — action verbs detected.`;
-    }
-
-    function estimateEngagementDensity() {
-      // Engagement slides count vs duration
-      const d = state.deck.meta.duration_mins;
-      const engagementSlides = state.deck.slides.filter(s => getSlideType(s.type)?.engagement).length;
-      const per15 = d / 15;
-      const density = per15 > 0 ? (engagementSlides / per15) : engagementSlides;
-
-      // simple label
-      let label = "—";
-      if (state.deck.slides.length === 0) return { engagementSlides, label, hint: "Add slides to compute." };
-
-      if (density < 0.7) label = "Low";
-      else if (density < 1.2) label = "Balanced";
-      else label = "High";
-
-      const hint = `${engagementSlides} engagement slide(s) across ${d} mins.`;
-      return { engagementSlides, label, hint };
-    }
-
-    function getSlideType(key) {
-      return SLIDE_TYPES.find(s => s.key === key);
-    }
-
-    function addSlide(typeKey, insertIndex = null) {
-      const st = getSlideType(typeKey);
-      const loList = state.deck.inputs.learning_outcomes;
-      const defaultLO = loList.length ? `LO1` : null;
-
-      const slide = {
-        id: uid(),
-        type: typeKey,
-        title: st?.defaultTitle || "Slide title",
-        bullets: (st?.defaultBullets || []).slice(0, 6),
-        speaker_notes: "",
-        lo_tag: defaultLO,
-        time_mins: getDefaultSlideTime(state.deck.meta.duration_mins),
-        tags: {
-          group: st?.group || "General",
-          engagement: !!st?.engagement
-        }
-      };
-
-      if (insertIndex === null || insertIndex < 0 || insertIndex > state.deck.slides.length) {
-        state.deck.slides.push(slide);
-      } else {
-        state.deck.slides.splice(insertIndex, 0, slide);
-      }
-
-      state.selectedSlideId = slide.id;
-      renderAll();
-      selectSlide(slide.id);
-    }
-
-    function removeSlide(id) {
-      const idx = state.deck.slides.findIndex(s => s.id === id);
-      if (idx >= 0) state.deck.slides.splice(idx, 1);
-      if (state.selectedSlideId === id) state.selectedSlideId = state.deck.slides[0]?.id || null;
-      renderAll();
-      if (state.selectedSlideId) selectSlide(state.selectedSlideId);
-      else clearEditor();
-    }
-
-    function duplicateSlide(id) {
-      const s = state.deck.slides.find(x => x.id === id);
-      if (!s) return;
-      const copy = JSON.parse(JSON.stringify(s));
-      copy.id = uid();
-      const idx = state.deck.slides.findIndex(x => x.id === id);
-      state.deck.slides.splice(idx + 1, 0, copy);
-      state.selectedSlideId = copy.id;
-      renderAll();
-      selectSlide(copy.id);
-    }
-
-    function requiredSlidesForCurrentMeta() {
-      const rules = STRATEGY_RULES[state.deck.meta.strategy];
-      const required = new Set();
-
-      // Always include foundation required
-      SLIDE_TYPES.filter(s => s.required).forEach(s => required.add(s.key));
-
-      // Strategy required
-      rules.requiredKeys.forEach(k => required.add(k));
-
-      // Assessment context adds assessment alignment
-      if (state.deck.meta.assessment_context !== "none") required.add("assessment_alignment");
-
-      // GenAI policy adds genai slide (if allowed/limited)
-      if (state.deck.meta.genai_policy === "allowed" || state.deck.meta.genai_policy === "limited") required.add("genai_practice");
-
-      // References add references slide if placement is end and refs exist
-      if (state.deck.inputs.references.length && state.deck.meta.citation_placement === "end") required.add("references_slide");
-
-      return Array.from(required);
-    }
-
-    function insertRequiredSlides() {
-      const needed = requiredSlidesForCurrentMeta();
-      const existing = new Set(state.deck.slides.map(s => s.type));
-      const toAdd = needed.filter(k => !existing.has(k));
-
-      // Insert in sensible order: foundation first, then rest
-      const order = [
-        "title_context",
-        "learning_outcomes",
-        "roadmap",
-        "concept_overview",
-        "concept_deepening",
-        "framework_model",
-        "guided_question",
-        "activity_task",
-        "check_understanding",
-        "application_example",
-        "compare_evaluate",
-        "reflection",
-        "assessment_alignment",
-        "genai_practice",
-        "references_slide"
-      ];
-
-      toAdd.sort((a,b) => order.indexOf(a) - order.indexOf(b));
-
-      // Insert foundation slides at start
-      let insertAt = 0;
-      for (const k of toAdd) {
-        const isFoundation = ["title_context","learning_outcomes","roadmap"].includes(k);
-        if (isFoundation) {
-          addSlide(k, insertAt);
-          insertAt++;
+        if (slide.layout === 'center') {
+            targetElement.style.textAlign = 'center';
+            content = `<h1>${slide.title}</h1>${formatBodyText(slide.body)}`;
         } else {
-          addSlide(k);
+            targetElement.style.textAlign = 'left';
+            content = `<h2>${slide.title}</h2>${formatBodyText(slide.body)}`;
         }
-      }
+        targetElement.innerHTML = content;
     }
 
-    function generateBlueprint() {
-      // Generate from recommended flow
-      const rules = STRATEGY_RULES[state.deck.meta.strategy];
-      const flow
+    function renderList() {
+        listContainer.innerHTML = "";
+        slides.forEach((slide, index) => {
+            const div = document.createElement('div');
+            div.className = `slide-thumbnail ${index === currentIndex ? 'active' : ''}`;
+            div.onclick = () => loadSlide(index);
+            div.innerHTML = `<span class="slide-num">${index + 1}</span> <div style="overflow:hidden; height:100%;">${slide.title}</div>`;
+            listContainer.appendChild(div);
+        });
+    }
+
+    function renderListTextOnly() {
+        // Updates the text in the sidebar without rebuilding DOM elements
+        const thumbs = listContainer.children;
+        if(thumbs[currentIndex]) {
+             thumbs[currentIndex].querySelector('div').innerText = slides[currentIndex].title;
+        }
+    }
+
+    // --- PRESENTATION MODE ---
+    function startPresentation() {
+        isPresenting = true;
+        presentMode.style.display = 'flex';
+        renderPresentationSlide();
+        
+        // Enter Fullscreen
+        if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+        }
+    }
+
+    function exitPresentation() {
+        isPresenting = false;
+        presentMode.style.display = 'none';
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+
+    function renderPresentationSlide() {
+        const slide = slides[currentIndex];
+        let content = "";
+        if (slide.layout === 'center') {
+            presentSlideContent.style.textAlign = 'center';
+            content = `<h1 style="font-size:4em">${slide.title}</h1>${formatBodyText(slide.body)}`;
+        } else {
+            presentSlideContent.style.textAlign = 'left';
+            content = `<h2>${slide.title}</h2>${formatBodyText(slide.body)}`;
+        }
+        presentSlideContent.innerHTML = content;
+    }
+
+    function nextSlide() {
+        if (currentIndex < slides.length - 1) {
+            currentIndex++;
+            renderPresentationSlide();
+        }
+    }
+
+    function prevSlide() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            renderPresentationSlide();
+        }
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (!isPresenting) return;
+        if (e.key === "ArrowRight" || e.key === "Space") nextSlide();
+        if (e.key === "ArrowLeft") prevSlide();
+        if (e.key === "Escape") exitPresentation();
+    });
+
+    init();
+</script>
+
+</body>
+</html>
