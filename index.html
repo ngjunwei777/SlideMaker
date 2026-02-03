@@ -2,1072 +2,1104 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>DeckForge – Standards-Based PowerPoint Deck Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>DeckOS — Standardized PowerPoint Deck Designer (Spec Builder)</title>
+  <meta name="theme-color" content="#0b0f1a" />
 
-  <!-- Tailwind (CDN) -->
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-
   <style>
-    /* Small polish: scrollbar + sticky headers */
-    .soft-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
-    .soft-scroll::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(0,0,0,.15); }
-    .soft-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,.04); }
-    .drag-hint { cursor: grab; }
-    .dragging { opacity: .5; cursor: grabbing; }
-    .toast { animation: toastIn .25s ease-out; }
-    @keyframes toastIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    /* Mobile safe-area padding */
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+
+    /* Smooth scrolling for side panels */
+    .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 999px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: rgba(255,255,255,0.06); border-radius: 999px; }
+
+    /* Drag handle cursor */
+    .drag-handle { cursor: grab; }
+    .dragging { opacity: 0.6; }
+
+    /* Simple toast */
+    .toast { transition: transform 220ms ease, opacity 220ms ease; }
   </style>
 </head>
 
-<body class="bg-slate-50 text-slate-900">
-  <!-- Top bar -->
-  <header class="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-      <div class="w-10 h-10 rounded-2xl bg-slate-900 text-white grid place-items-center shadow-sm">
-        <i class="fa-solid fa-layer-group"></i>
-      </div>
-      <div class="flex-1">
-        <div class="flex items-center gap-2">
-          <h1 class="text-lg font-semibold leading-tight">DeckForge</h1>
-          <span class="text-xs px-2 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">topic-agnostic</span>
-          <span id="strategyBadge" class="text-xs px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 hidden">Strategy compliant</span>
+<body class="bg-slate-950 text-slate-100 safe-top safe-bottom">
+  <div class="min-h-screen">
+    <!-- Top Bar -->
+    <header class="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 backdrop-blur">
+      <div class="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="h-9 w-9 rounded-2xl bg-gradient-to-br from-indigo-400 to-cyan-300 grid place-items-center shadow-sm">
+            <span class="text-slate-950 font-black">D</span>
+          </div>
+          <div class="leading-tight">
+            <div class="font-semibold">DeckOS</div>
+            <div class="text-xs text-slate-400">Topic-agnostic standardized deck spec builder</div>
+          </div>
         </div>
-        <p class="text-xs text-slate-500">Build standardized deck blueprints from learning outcomes + content points (GitHub-friendly spec).</p>
-      </div>
 
-      <div class="flex items-center gap-2">
-        <button id="btnReset" class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm">
-          <i class="fa-solid fa-rotate-left mr-2"></i>Reset
-        </button>
-        <button id="btnExport" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm shadow-sm">
-          <i class="fa-solid fa-download mr-2"></i>Export spec
-        </button>
+        <div class="flex items-center gap-2">
+          <button id="btnHelp" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
+            Help
+          </button>
+          <button id="btnReset" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
+            Reset
+          </button>
+          <button id="btnDownloadSpec" class="px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-semibold text-sm">
+            Download Spec
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="mx-auto max-w-7xl px-4 py-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left: Wizard -->
+        <section class="lg:col-span-7">
+          <!-- Stepper -->
+          <div class="flex items-center justify-between gap-2 mb-4">
+            <div class="flex items-center gap-2 text-sm">
+              <span id="stepBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <span class="h-2 w-2 rounded-full bg-cyan-300"></span>
+                <span id="stepLabel">Step 1 of 4</span>
+              </span>
+              <span id="stepTitle" class="text-slate-200 font-medium">Deck Setup</span>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button id="btnPrev" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm disabled:opacity-40 disabled:hover:bg-transparent" disabled>
+                Back
+              </button>
+              <button id="btnNext" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm">
+                Next
+              </button>
+            </div>
+          </div>
+
+          <!-- Wizard Cards -->
+          <div class="space-y-6">
+
+            <!-- Step 1: Setup -->
+            <div id="step1" class="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div class="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h2 class="text-lg font-semibold">Deck Setup</h2>
+                  <p class="text-sm text-slate-400">Choose high-level variables. The system will enforce standardization rules.</p>
+                </div>
+                <div class="text-xs text-slate-400">
+                  <span class="px-2 py-1 rounded-full border border-white/10 bg-slate-950/50">Topic-agnostic</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-slate-300">Deck title</label>
+                  <input id="deckTitle" type="text" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40"
+                         placeholder="e.g., Teaching Strategy Micro-Training" />
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">Audience level</label>
+                  <select id="audience" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
+                    <option value="certificate">Certificate</option>
+                    <option value="diploma">Diploma</option>
+                    <option value="degree" selected>Degree</option>
+                    <option value="masters">Masters</option>
+                    <option value="doctorate">Doctorate</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">Duration</label>
+                  <select id="duration" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
+                    <option value="10">10 mins</option>
+                    <option value="15" selected>15 mins</option>
+                    <option value="30">30 mins</option>
+                    <option value="60">60 mins</option>
+                    <option value="90">90 mins</option>
+                    <option value="120">120 mins</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">Teaching strategy</label>
+                  <select id="strategy" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
+                    <option value="direct_instruction" selected>Direct Instruction</option>
+                    <option value="pbl">Problem-Based Learning (PBL)</option>
+                    <option value="collaborative">Collaborative Learning</option>
+                    <option value="inquiry">Inquiry-Based Learning</option>
+                    <option value="experiential">Experiential Learning</option>
+                    <option value="flipped">Flipped Classroom</option>
+                    <option value="scaffolded">Scaffolded Learning</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">Interactivity</label>
+                  <div class="mt-1 grid grid-cols-3 gap-2">
+                    <button data-interactivity="low" class="interactBtn px-3 py-2 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-white/5 text-sm">Low</button>
+                    <button data-interactivity="medium" class="interactBtn px-3 py-2 rounded-xl border border-white/10 bg-white/10 hover:bg-white/15 text-sm">Medium</button>
+                    <button data-interactivity="high" class="interactBtn px-3 py-2 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-white/5 text-sm">High</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">Assessment context</label>
+                  <select id="assessment" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
+                    <option value="none" selected>None</option>
+                    <option value="formative">Formative</option>
+                    <option value="summative">Summative</option>
+                    <option value="authentic">Authentic Assessment</option>
+                    <option value="viva">Viva/Oral</option>
+                    <option value="project">Project</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">GenAI policy</label>
+                  <select id="genaiPolicy" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
+                    <option value="allowed">Allowed</option>
+                    <option value="limited" selected>Limited</option>
+                    <option value="prohibited">Prohibited</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">Density</label>
+                  <select id="density" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40">
+                    <option value="airy">Airy</option>
+                    <option value="standard" selected>Standard</option>
+                    <option value="compact">Compact</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="mt-4 p-3 rounded-xl border border-white/10 bg-slate-950/40">
+                <div class="text-xs text-slate-400 mb-1">Strategy rules preview</div>
+                <div id="strategyRulesPreview" class="text-sm text-slate-200"></div>
+              </div>
+            </div>
+
+            <!-- Step 2: Inputs -->
+            <div id="step2" class="hidden rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div class="mb-4">
+                <h2 class="text-lg font-semibold">Learning Outcomes & Content</h2>
+                <p class="text-sm text-slate-400">Provide outcomes + topic outline. The builder will map outcomes to slides.</p>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4">
+                <div>
+                  <div class="flex items-center justify-between">
+                    <label class="text-xs text-slate-300">Learning outcomes (one per line)</label>
+                    <button id="btnAutoVerbHints" class="text-xs px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5">Verb check</button>
+                  </div>
+                  <textarea id="learningOutcomes" rows="6"
+                    class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40"
+                    placeholder="e.g.,\nAnalyse ...\nEvaluate ...\nDesign ..."></textarea>
+                  <div id="loHints" class="mt-2 text-xs text-slate-400"></div>
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">Topic & key content points</label>
+                  <textarea id="topicOutline" rows="6"
+                    class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40"
+                    placeholder="Write your key points/bullets. Keep it topic-agnostic if you prefer.\n\nExample:\n- Define the concept\n- Explain why it matters\n- Compare two approaches\n- Common misconceptions"></textarea>
+                </div>
+
+                <div>
+                  <label class="text-xs text-slate-300">References (optional; one per line)</label>
+                  <textarea id="references" rows="4"
+                    class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none focus:ring-2 focus:ring-cyan-300/40"
+                    placeholder="Paste DOI/URL/APA reference lines here..."></textarea>
+
+                  <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <label class="text-xs text-slate-400">Citation style</label>
+                    <select id="citationStyle" class="rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none text-sm">
+                      <option value="apa7" selected>APA 7</option>
+                      <option value="harvard">Harvard</option>
+                      <option value="ieee">IEEE</option>
+                    </select>
+                    <label class="text-xs text-slate-400 ml-2">Placement</label>
+                    <select id="citationPlacement" class="rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none text-sm">
+                      <option value="end" selected>End slide</option>
+                      <option value="distributed">Distributed (as needed)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="p-3 rounded-xl border border-white/10 bg-slate-950/40">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <div class="text-sm font-medium">Readiness meter</div>
+                      <div class="text-xs text-slate-400">LO coverage + time fit + references presence</div>
+                    </div>
+                    <div class="text-right">
+                      <div id="readinessScore" class="text-xl font-bold text-cyan-300">0%</div>
+                      <div id="readinessLabel" class="text-xs text-slate-400">Add learning outcomes to begin</div>
+                    </div>
+                  </div>
+                  <div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div id="readinessBar" class="h-2 w-0 bg-cyan-300"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3: Blueprint -->
+            <div id="step3" class="hidden rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div class="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <h2 class="text-lg font-semibold">Slide Blueprint</h2>
+                  <p class="text-sm text-slate-400">A standardized flow generated from your choices. Drag to reorder, add/remove from allowed types.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button id="btnGenerateBlueprint" class="px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-semibold text-sm">
+                    Generate Blueprint
+                  </button>
+                  <button id="btnAddSlide" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
+                    Add Slide
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Blueprint list -->
+                <div class="rounded-2xl border border-white/10 bg-slate-950/40 overflow-hidden">
+                  <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                    <div class="text-sm font-medium">Deck Map</div>
+                    <div class="text-xs text-slate-400"><span id="slideCount">0</span> slides</div>
+                  </div>
+                  <div id="blueprintList" class="p-3 max-h-[520px] overflow-auto scrollbar-thin"></div>
+                </div>
+
+                <!-- Slide editor -->
+                <div class="rounded-2xl border border-white/10 bg-slate-950/40 overflow-hidden">
+                  <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                    <div class="text-sm font-medium">Selected Slide</div>
+                    <div class="text-xs text-slate-400" id="selectedSlideMeta">None</div>
+                  </div>
+                  <div class="p-4 space-y-4">
+                    <div>
+                      <label class="text-xs text-slate-300">Slide type</label>
+                      <select id="editSlideType" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled></select>
+                    </div>
+
+                    <div>
+                      <label class="text-xs text-slate-300">Title</label>
+                      <input id="editSlideTitle" type="text" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled />
+                    </div>
+
+                    <div>
+                      <label class="text-xs text-slate-300">Bullets (one per line)</label>
+                      <textarea id="editSlideBullets" rows="6" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled></textarea>
+                      <div id="slideHealth" class="mt-2 text-xs text-slate-400"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="text-xs text-slate-300">Time (mins)</label>
+                        <input id="editSlideTime" type="number" min="0.5" step="0.5" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled />
+                      </div>
+                      <div>
+                        <label class="text-xs text-slate-300">LO tag</label>
+                        <select id="editSlideLO" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled></select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="text-xs text-slate-300">Speaker notes</label>
+                      <textarea id="editSlideNotes" rows="5" class="mt-1 w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none" disabled></textarea>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                      <button id="btnRemoveSlide" class="px-3 py-2 rounded-xl border border-red-400/30 text-red-200 hover:bg-red-400/10 text-sm disabled:opacity-40" disabled>
+                        Remove slide
+                      </button>
+                      <button id="btnDuplicateSlide" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm disabled:opacity-40" disabled>
+                        Duplicate
+                      </button>
+                      <button id="btnRegenerateSlide" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm disabled:opacity-40" disabled>
+                        Suggest improvements
+                      </button>
+                    </div>
+
+                    <div class="p-3 rounded-xl border border-white/10 bg-slate-950/60">
+                      <div class="flex items-center justify-between">
+                        <div class="text-sm font-medium">Time budget</div>
+                        <div class="text-xs text-slate-400"><span id="timeSum">0</span> / <span id="timeTarget">15</span> mins</div>
+                      </div>
+                      <div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                        <div id="timeBar" class="h-2 w-0 bg-cyan-300"></div>
+                      </div>
+                      <div id="timeHint" class="mt-2 text-xs text-slate-400"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 4: Review & Export -->
+            <div id="step4" class="hidden rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div class="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <h2 class="text-lg font-semibold">Review & Export</h2>
+                  <p class="text-sm text-slate-400">Validate rules, LO coverage, engagement density, and export your GitHub-friendly deck spec.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button id="btnRunValidation" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm">
+                    Run validation
+                  </button>
+                  <button id="btnCopySpec" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
+                    Copy spec
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Validation panel -->
+                <div class="rounded-2xl border border-white/10 bg-slate-950/40 overflow-hidden">
+                  <div class="px-4 py-3 border-b border-white/10">
+                    <div class="text-sm font-medium">Quality gates</div>
+                    <div class="text-xs text-slate-400">Standardization checks (non-topic-specific).</div>
+                  </div>
+                  <div id="validationResults" class="p-4 space-y-3"></div>
+                </div>
+
+                <!-- Spec preview -->
+                <div class="rounded-2xl border border-white/10 bg-slate-950/40 overflow-hidden">
+                  <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                    <div>
+                      <div class="text-sm font-medium">Deck Spec (JSON)</div>
+                      <div class="text-xs text-slate-400">This is what you commit to GitHub.</div>
+                    </div>
+                    <button id="btnDownloadPdfPlaceholder" class="text-xs px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5" title="Placeholder (no PDF generation in this single-file demo)">
+                      PDF preview (placeholder)
+                    </button>
+                  </div>
+                  <pre id="specPreview" class="p-4 text-xs overflow-auto max-h-[520px] scrollbar-thin bg-slate-950/30"></pre>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Right: Dashboard / Catalog -->
+        <aside class="lg:col-span-5 space-y-6">
+          <!-- Dashboard -->
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="font-semibold">Dashboard</h3>
+                <p class="text-sm text-slate-400">Live indicators as you build.</p>
+              </div>
+              <span class="text-xs px-2 py-1 rounded-full border border-white/10 bg-slate-950/40">v0.1</span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-2 gap-3">
+              <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3">
+                <div class="text-xs text-slate-400">LO coverage</div>
+                <div class="mt-1 flex items-end justify-between">
+                  <div id="loCoveragePct" class="text-2xl font-bold text-cyan-300">0%</div>
+                  <div class="text-xs text-slate-400"><span id="loCount">0</span> LOs</div>
+                </div>
+                <div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div id="loCoverageBar" class="h-2 w-0 bg-cyan-300"></div>
+                </div>
+              </div>
+
+              <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3">
+                <div class="text-xs text-slate-400">Engagement density</div>
+                <div class="mt-1 flex items-end justify-between">
+                  <div id="engagementScore" class="text-2xl font-bold text-cyan-300">0</div>
+                  <div class="text-xs text-slate-400"><span id="engagementLabel">—</span></div>
+                </div>
+                <div class="mt-3 text-xs text-slate-400" id="engagementHint">Add slides to compute.</div>
+              </div>
+
+              <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3 col-span-2">
+                <div class="text-xs text-slate-400">Time fit</div>
+                <div class="mt-1 flex items-end justify-between">
+                  <div class="text-2xl font-bold text-cyan-300"><span id="timeFitPct">0</span>%</div>
+                  <div class="text-xs text-slate-400"><span id="timeFitDetail">0 / 15 mins</span></div>
+                </div>
+                <div class="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
+                  <div id="timeFitBar" class="h-2 w-0 bg-cyan-300"></div>
+                </div>
+                <div class="mt-2 text-xs text-slate-400" id="timeFitHint">Generate a blueprint to estimate time.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Slide Catalog (topic-agnostic) -->
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h3 class="font-semibold">Slide Catalog</h3>
+                <p class="text-sm text-slate-400">Allowed building blocks (topic-agnostic).</p>
+              </div>
+              <button id="btnInsertRequired" class="text-xs px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5">
+                Insert required
+              </button>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2" id="catalogCards"></div>
+
+            <div class="mt-4 p-3 rounded-xl border border-white/10 bg-slate-950/40">
+              <div class="text-xs text-slate-400 mb-1">Design rules (enforced)</div>
+              <ul class="text-sm text-slate-200 list-disc list-inside space-y-1">
+                <li>Max 6 bullets per slide</li>
+                <li>Max 2 lines per bullet (soft check)</li>
+                <li>Minimum font size: enforced by generator (future)</li>
+                <li>Every LO mapped to ≥ 1 slide</li>
+                <li>Engagement at least every 15 mins (warning-based)</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <h3 class="font-semibold">Quick actions</h3>
+            <p class="text-sm text-slate-400">Build faster with guardrails.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button id="btnAutoMapLOs" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
+                Auto-map LOs
+              </button>
+              <button id="btnAutoNotes" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
+                Add facilitator notes
+              </button>
+              <button id="btnSuggestEngagement" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">
+                Add engagement slide
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="helpModal" class="hidden fixed inset-0 z-40">
+    <div class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-x-0 top-10 mx-auto max-w-2xl px-4">
+      <div class="rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-xl">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-lg font-semibold">How this demo works</div>
+            <div class="text-sm text-slate-400 mt-1">
+              This single-file app builds a <span class="text-slate-200 font-medium">deck specification</span> (JSON) that you can commit to GitHub.
+              A future generator can convert this spec into PPTX/PDF using your standard template.
+            </div>
+          </div>
+          <button id="btnCloseHelp" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">Close</button>
+        </div>
+
+        <div class="mt-4 space-y-3 text-sm text-slate-200">
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+            <div class="font-medium mb-1">Tip: Standardization without rigidity</div>
+            <ul class="list-disc list-inside text-slate-300 space-y-1">
+              <li>Let users choose variables; enforce slide types and rules.</li>
+              <li>Use warnings (not hard errors) for pedagogy rules, except LO coverage.</li>
+              <li>Store content as JSON/YAML in GitHub and regenerate decks deterministically.</li>
+            </ul>
+          </div>
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+            <div class="font-medium mb-1">What’s not included (yet)</div>
+            <ul class="list-disc list-inside text-slate-300 space-y-1">
+              <li>PPTX generation</li>
+              <li>Template theming and brand assets</li>
+              <li>Licensing-safe image suggestions</li>
+            </ul>
+          </div>
+        </div>
+
       </div>
     </div>
-  </header>
-
-  <!-- Main layout -->
-  <main class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-    <!-- Left: Builder -->
-    <section class="lg:col-span-7 space-y-6">
-      <!-- Stepper -->
-      <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <span class="text-xs px-2 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">Workflow</span>
-            <span id="stepLabel" class="text-sm font-medium">1) Setup</span>
-          </div>
-          <div class="flex gap-2">
-            <button id="btnPrev" class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" disabled>
-              <i class="fa-solid fa-chevron-left mr-2"></i>Back
-            </button>
-            <button id="btnNext" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm">
-              Next<i class="fa-solid fa-chevron-right ml-2"></i>
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-4 gap-2">
-          <div class="step-pill" data-step="0"></div>
-          <div class="step-pill" data-step="1"></div>
-          <div class="step-pill" data-step="2"></div>
-          <div class="step-pill" data-step="3"></div>
-        </div>
-      </div>
-
-      <!-- Step 1: Setup -->
-      <div id="step0" class="step-panel bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 class="text-base font-semibold">Deck Setup</h2>
-            <p class="text-sm text-slate-500 mt-1">Choose variables. The system enforces structure + standards behind the scenes.</p>
-          </div>
-          <div class="text-xs text-slate-500">
-            <span class="px-2 py-1 rounded-full bg-slate-100 border border-slate-200">Smart defaults</span>
-          </div>
-        </div>
-
-        <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="text-sm font-medium">Deck title</label>
-            <input id="deckTitle" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-              placeholder="e.g., Teaching Strategy Microtraining" />
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Audience level</label>
-            <select id="audienceLevel" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-              <option>Certificate</option>
-              <option>Diploma</option>
-              <option selected>Degree</option>
-              <option>Masters</option>
-              <option>Doctorate</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Duration</label>
-            <select id="duration" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-              <option value="10">10 mins</option>
-              <option value="15" selected>15 mins</option>
-              <option value="30">30 mins</option>
-              <option value="60">60 mins</option>
-              <option value="90">90 mins</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Teaching strategy</label>
-            <select id="strategy" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-              <option value="direct" selected>Direct Instruction</option>
-              <option value="pbl">Problem-Based Learning (PBL)</option>
-              <option value="collab">Collaborative Learning</option>
-              <option value="inquiry">Inquiry-Based Learning</option>
-              <option value="experiential">Experiential Learning</option>
-              <option value="flipped">Flipped Classroom</option>
-              <option value="scaffolded">Scaffolded Learning</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Interactivity level</label>
-            <div class="mt-1 grid grid-cols-3 gap-2">
-              <button class="btnChoice choiceInteractivity px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="low">Low</button>
-              <button class="btnChoice choiceInteractivity px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="medium">Medium</button>
-              <button class="btnChoice choiceInteractivity px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="high">High</button>
-            </div>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Tone</label>
-            <select id="tone" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-              <option>Formal</option>
-              <option selected>Practical</option>
-              <option>Workshop</option>
-              <option>Coaching</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Assessment context</label>
-            <select id="assessmentContext" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-              <option value="none" selected>None</option>
-              <option value="formative">Formative (low stakes)</option>
-              <option value="summative">Summative (high stakes)</option>
-              <option value="authentic">Authentic / performance task</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">GenAI policy</label>
-            <select id="genaiPolicy" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-              <option value="allowed">Allowed</option>
-              <option value="limited" selected>Limited</option>
-              <option value="prohibited">Prohibited</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="mt-5 flex flex-wrap gap-2">
-          <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm">
-            <input id="toggleSpeakerNotes" type="checkbox" class="rounded" checked />
-            Include facilitator speaker notes
-          </label>
-          <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm">
-            <input id="toggleLOMapping" type="checkbox" class="rounded" checked />
-            Enforce LO coverage rules
-          </label>
-          <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm">
-            <input id="toggleRefs" type="checkbox" class="rounded" checked />
-            Include references slide
-          </label>
-        </div>
-      </div>
-
-      <!-- Step 2: Inputs -->
-      <div id="step1" class="step-panel hidden bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 class="text-base font-semibold">Learning Outcomes & Content Inputs</h2>
-            <p class="text-sm text-slate-500 mt-1">Paste your LOs and key content points. The generator uses these to create a standardized slide blueprint.</p>
-          </div>
-          <button id="btnAutofill" class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm">
-            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Example fill
-          </button>
-        </div>
-
-        <div class="mt-5 grid grid-cols-1 gap-4">
-          <div>
-            <label class="text-sm font-medium">Learning outcomes (one per line)</label>
-            <textarea id="learningOutcomes" rows="6"
-              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 soft-scroll"
-              placeholder="e.g.,\n1) Explain …\n2) Apply …\n3) Evaluate …"></textarea>
-            <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
-              <span id="loCount">0 outcomes detected</span>
-              <span id="bloomHint" class="hidden px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
-                Tip: start each LO with an action verb
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Topic & key content points</label>
-            <input id="topicTitle" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-              placeholder="Topic title (not discipline-specific)" />
-            <textarea id="contentPoints" rows="6"
-              class="mt-2 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 soft-scroll"
-              placeholder="Key points (bullets), one per line\n- Define …\n- Steps of …\n- Common pitfalls …\n- Best practices …"></textarea>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">References (optional, one per line)</label>
-            <textarea id="references" rows="5"
-              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 soft-scroll"
-              placeholder="APA/DOI/URL references\n(you can keep this empty)"></textarea>
-            <div class="mt-2 text-xs text-slate-500">
-              The app will include a References slide if toggled on and at least 1 reference is provided.
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4 flex flex-wrap gap-2">
-          <button id="btnGenerateBlueprint" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm shadow-sm">
-            <i class="fa-solid fa-diagram-project mr-2"></i>Generate slide blueprint
-          </button>
-          <button id="btnClearInputs" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm">
-            <i class="fa-solid fa-eraser mr-2"></i>Clear
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 3: Blueprint -->
-      <div id="step2" class="step-panel hidden bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 class="text-base font-semibold">Slide Blueprint</h2>
-            <p class="text-sm text-slate-500 mt-1">Drag to reorder. Add or remove slides using standardized types. LO coverage and time fit update live.</p>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <button id="btnAddSlide" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm shadow-sm">
-              <i class="fa-solid fa-plus mr-2"></i>Add slide
-            </button>
-            <button id="btnAutoFix" class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm">
-              <i class="fa-solid fa-screwdriver-wrench mr-2"></i>Auto-fix rules
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="p-3 rounded-xl border border-slate-200 bg-slate-50">
-            <div class="text-xs text-slate-500">Engagement density</div>
-            <div class="mt-1 flex gap-2">
-              <button class="btnChoice choiceEng px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="low">Low</button>
-              <button class="btnChoice choiceEng px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="medium">Medium</button>
-              <button class="btnChoice choiceEng px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="high">High</button>
-            </div>
-          </div>
-          <div class="p-3 rounded-xl border border-slate-200 bg-slate-50">
-            <div class="text-xs text-slate-500">Time per slide (estimate)</div>
-            <div class="mt-1 grid grid-cols-3 gap-2">
-              <button class="btnChoice choicePace px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="fast">Fast</button>
-              <button class="btnChoice choicePace px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="standard">Standard</button>
-              <button class="btnChoice choicePace px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm" data-value="slow">Slow</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold">Slides</h3>
-            <div class="text-xs text-slate-500">Tip: drag handle to reorder</div>
-          </div>
-
-          <div id="slidesList" class="mt-2 space-y-2"></div>
-        </div>
-      </div>
-
-      <!-- Step 4: Review & Export -->
-      <div id="step3" class="step-panel hidden bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 class="text-base font-semibold">Review & Export</h2>
-            <p class="text-sm text-slate-500 mt-1">Preview the standardized deck spec. Export as JSON for GitHub versioning.</p>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <button id="btnCopySpec" class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm">
-              <i class="fa-solid fa-copy mr-2"></i>Copy
-            </button>
-            <button id="btnExport2" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm shadow-sm">
-              <i class="fa-solid fa-download mr-2"></i>Download
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 class="text-sm font-semibold">Quality checks</h3>
-            <ul id="qualityList" class="mt-3 space-y-2 text-sm"></ul>
-          </div>
-
-          <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <h3 class="text-sm font-semibold">Deck spec (JSON)</h3>
-            <pre id="specPreview" class="mt-3 text-xs mono bg-white border border-slate-200 rounded-xl p-3 max-h-[380px] overflow-auto soft-scroll"></pre>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Right: Dashboard -->
-    <aside class="lg:col-span-5 space-y-6">
-      <!-- Readiness -->
-      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 class="text-base font-semibold">Deck Readiness</h2>
-            <p class="text-sm text-slate-500 mt-1">Live indicators to keep decks standardized and usable.</p>
-          </div>
-          <span id="readinessPill" class="text-xs px-2 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">Not ready</span>
-        </div>
-
-        <div class="mt-4 space-y-4">
-          <div>
-            <div class="flex justify-between text-sm">
-              <span class="text-slate-600">LO coverage</span>
-              <span id="loCoverageText" class="font-medium">0%</span>
-            </div>
-            <div class="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div id="loCoverageBar" class="h-2 w-0 bg-slate-900 rounded-full"></div>
-            </div>
-          </div>
-
-          <div>
-            <div class="flex justify-between text-sm">
-              <span class="text-slate-600">Time fit</span>
-              <span id="timeFitText" class="font-medium">—</span>
-            </div>
-            <div class="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div id="timeFitBar" class="h-2 w-0 bg-slate-900 rounded-full"></div>
-            </div>
-          </div>
-
-          <div>
-            <div class="flex justify-between text-sm">
-              <span class="text-slate-600">Engagement density</span>
-              <span id="engagementText" class="font-medium">—</span>
-            </div>
-            <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
-              <div class="p-2 rounded-xl border border-slate-200 bg-slate-50">
-                <div class="text-slate-500">Activity</div>
-                <div id="countActivity" class="font-semibold text-slate-900">0</div>
-              </div>
-              <div class="p-2 rounded-xl border border-slate-200 bg-slate-50">
-                <div class="text-slate-500">CFU</div>
-                <div id="countCFU" class="font-semibold text-slate-900">0</div>
-              </div>
-              <div class="p-2 rounded-xl border border-slate-200 bg-slate-50">
-                <div class="text-slate-500">Reflection</div>
-                <div id="countReflection" class="font-semibold text-slate-900">0</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="pt-2 border-t border-slate-200">
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-slate-600">Warnings</span>
-              <span id="warnCount" class="text-xs px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700">0</span>
-            </div>
-            <ul id="warningsList" class="mt-2 text-sm space-y-2"></ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- Slide type catalog -->
-      <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <h2 class="text-base font-semibold">Standard Slide Types</h2>
-            <p class="text-sm text-slate-500 mt-1">Your app enforces these building blocks (topic-agnostic).</p>
-          </div>
-          <span class="text-xs px-2 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">Canonical</span>
-        </div>
-
-        <div id="slideCatalog" class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
-
-        <div class="mt-4 text-xs text-slate-500">
-          Tip: Keep design freedom constrained—offer a few themes + density options, not unlimited customization.
-        </div>
-      </div>
-    </aside>
-  </main>
+  </div>
 
   <!-- Add Slide Modal -->
-  <div id="modalBackdrop" class="hidden fixed inset-0 z-40 bg-black/40"></div>
-  <div id="modal" class="hidden fixed inset-0 z-50 grid place-items-center p-4">
-    <div class="w-full max-w-lg bg-white rounded-2xl border border-slate-200 shadow-lg">
-      <div class="p-4 border-b border-slate-200 flex items-center justify-between">
-        <div>
-          <div class="text-sm font-semibold">Add a slide</div>
-          <div class="text-xs text-slate-500">Choose a standardized slide type.</div>
-        </div>
-        <button id="btnCloseModal" class="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 grid place-items-center">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <div class="p-4 space-y-3">
-        <div>
-          <label class="text-sm font-medium">Slide type</label>
-          <select id="newSlideType" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10"></select>
-        </div>
-
-        <div>
-          <label class="text-sm font-medium">Title</label>
-          <input id="newSlideTitle" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-                 placeholder="A clear, specific title (prefer verbs/claims)" />
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  <div id="addSlideModal" class="hidden fixed inset-0 z-40">
+    <div class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-x-0 top-14 mx-auto max-w-xl px-4">
+      <div class="rounded-2xl border border-white/10 bg-slate-950 p-5 shadow-xl">
+        <div class="flex items-start justify-between gap-3">
           <div>
-            <label class="text-sm font-medium">LO mapping</label>
-            <select id="newSlideLO" class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10">
-              <option value="">(none)</option>
-            </select>
+            <div class="text-lg font-semibold">Add a slide</div>
+            <div class="text-sm text-slate-400 mt-1">Choose a slide type and insert it into the deck map.</div>
           </div>
-          <div>
-            <label class="text-sm font-medium">Estimated time (mins)</label>
-            <input id="newSlideTime" type="number" min="0" step="0.5"
-              class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-              value="2" />
-          </div>
+          <button id="btnCloseAddSlide" class="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5 text-sm">Close</button>
         </div>
 
-        <div>
-          <label class="text-sm font-medium">Bullets (optional)</label>
-          <textarea id="newSlideBullets" rows="4"
-            class="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10 soft-scroll"
-            placeholder="- Keep it concise\n- Max ~6 bullets"></textarea>
-        </div>
+        <div class="mt-4 space-y-3">
+          <label class="text-xs text-slate-300">Slide type</label>
+          <select id="addSlideType" class="w-full rounded-xl bg-slate-950/60 border border-white/10 px-3 py-2 outline-none"></select>
 
-        <div class="flex justify-end gap-2 pt-2">
-          <button id="btnCancelAdd" class="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm">Cancel</button>
-          <button id="btnConfirmAdd" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm shadow-sm">
-            <i class="fa-solid fa-plus mr-2"></i>Add
-          </button>
+          <div class="flex items-center justify-end gap-2 pt-2">
+            <button id="btnAddSlideConfirm" class="px-3 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-semibold text-sm">
+              Insert
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Toast -->
-  <div id="toastHost" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] space-y-2"></div>
+  <div id="toast" class="toast fixed bottom-4 left-1/2 -translate-x-1/2 translate-y-6 opacity-0 z-50 px-4 py-2 rounded-xl border border-white/10 bg-slate-950/90 text-sm"></div>
 
-<script>
-/* =========================
-   DeckForge (topic-agnostic)
-   ========================= */
+  <script>
+    /**********************
+     * Topic-agnostic spec builder
+     * - Generates a GitHub-friendly JSON spec
+     * - Provides slide blueprint, LO mapping, rule checks
+     **********************/
 
-const SLIDE_TYPES = [
-  { id: "title_context", label: "Title & Context", cat: "Foundation", desc: "Purpose, audience, duration, strategy." },
-  { id: "learning_outcomes", label: "Learning Outcomes", cat: "Foundation", desc: "3–5 outcomes, action verbs." },
-  { id: "roadmap", label: "Session Roadmap", cat: "Foundation", desc: "Flow + time blocks." },
+    // Slide catalog (topic-agnostic)
+    const SLIDE_TYPES = [
+      { key: "title_context", name: "Title & Context", group: "Foundation", engagement: false, required: true,
+        defaultTitle: "Session title & context",
+        defaultBullets: ["Audience & level", "Duration & strategy", "Why this matters (1 line)"] },
+      { key: "learning_outcomes", name: "Learning Outcomes", group: "Foundation", engagement: false, required: true,
+        defaultTitle: "Learning outcomes",
+        defaultBullets: ["By the end, you will be able to…"] },
+      { key: "roadmap", name: "Session Roadmap", group: "Foundation", engagement: false, required: true,
+        defaultTitle: "How we’ll get there",
+        defaultBullets: ["Build concepts", "Engage & check understanding", "Apply & reflect"] },
 
-  { id: "concept_overview", label: "Concept Overview", cat: "Knowledge", desc: "One main idea, intro." },
-  { id: "concept_deepening", label: "Concept Deepening", cat: "Knowledge", desc: "Build complexity (sequence)." },
-  { id: "framework_model", label: "Framework / Process / Model", cat: "Knowledge", desc: "Visual-first representation." },
+      { key: "concept_overview", name: "Concept Overview", group: "Knowledge", engagement: false, required: false,
+        defaultTitle: "Core concept",
+        defaultBullets: ["Definition (plain language)", "Key idea (1 sentence)", "Common misconception (optional)"] },
+      { key: "concept_deepening", name: "Concept Deepening", group: "Knowledge", engagement: false, required: false,
+        defaultTitle: "Going deeper",
+        defaultBullets: ["Breakdown into parts", "Mechanism / rationale", "Implications"] },
+      { key: "framework_model", name: "Framework / Process / Model", group: "Knowledge", engagement: false, required: false,
+        defaultTitle: "A useful framework",
+        defaultBullets: ["Step 1", "Step 2", "Step 3"] },
 
-  { id: "guided_question", label: "Guided Question", cat: "Engagement", desc: "Prompt thinking/prediction." },
-  { id: "activity_task", label: "Activity / Task", cat: "Engagement", desc: "Output-driven task." },
-  { id: "check_understanding", label: "Check for Understanding (CFU)", cat: "Engagement", desc: "Poll/MCQ/diagnostic." },
+      { key: "guided_question", name: "Guided Question", group: "Engagement", engagement: true, required: false,
+        defaultTitle: "Think first",
+        defaultBullets: ["Prompt/question", "What to notice", "1-minute individual think"] },
+      { key: "activity_task", name: "Activity / Task", group: "Engagement", engagement: true, required: false,
+        defaultTitle: "Do the task",
+        defaultBullets: ["Instructions", "Output (what to produce)", "Time box & roles"] },
+      { key: "check_understanding", name: "Check for Understanding", group: "Engagement", engagement: true, required: false,
+        defaultTitle: "Quick check",
+        defaultBullets: ["MCQ / short answer prompt", "Expected reasoning (for facilitator)", "Common errors"] },
 
-  { id: "application_example", label: "Application / Example", cat: "Transfer", desc: "Generic scenario transfer." },
-  { id: "compare_evaluate", label: "Compare / Evaluate", cat: "Transfer", desc: "Contrast and judge." },
-  { id: "reflection", label: "Reflection", cat: "Transfer", desc: "Metacognitive wrap-up." },
+      { key: "application_example", name: "Application / Example", group: "Transfer", engagement: false, required: false,
+        defaultTitle: "Apply it",
+        defaultBullets: ["Scenario (generic)", "Apply the concept", "What changes if constraints change?"] },
+      { key: "compare_evaluate", name: "Compare / Evaluate", group: "Transfer", engagement: true, required: false,
+        defaultTitle: "Compare approaches",
+        defaultBullets: ["Option A vs B", "Trade-offs", "Decision criteria"] },
+      { key: "reflection", name: "Reflection / Metacognition", group: "Transfer", engagement: true, required: true,
+        defaultTitle: "Reflect",
+        defaultBullets: ["What changed in your thinking?", "What still feels unclear?", "Next step"] },
 
-  { id: "assessment_alignment", label: "Assessment Alignment", cat: "Academic Practice", desc: "Criteria-oriented alignment." },
-  { id: "genai_practice", label: "GenAI / Academic Practice", cat: "Academic Practice", desc: "Policy + acceptable use." },
-  { id: "references", label: "References", cat: "Academic Practice", desc: "Auto-formatted list." },
+      { key: "assessment_alignment", name: "Assessment Alignment", group: "Academic Practice", engagement: false, required: false,
+        defaultTitle: "Assessment alignment",
+        defaultBullets: ["What evidence of learning looks like", "Criteria / rubric lens", "Common pitfalls"] },
+      { key: "genai_practice", name: "Ethics / AI / Academic Practice", group: "Academic Practice", engagement: false, required: false,
+        defaultTitle: "GenAI & academic practice",
+        defaultBullets: ["What’s allowed", "What’s not allowed", "How to cite/use responsibly"] },
+      { key: "references_slide", name: "References", group: "Academic Practice", engagement: false, required: false,
+        defaultTitle: "References",
+        defaultBullets: ["(Auto-filled)"] },
+    ];
 
-  // Strategy-specific helpers (still topic-agnostic)
-  { id: "problem_brief", label: "Problem Brief (PBL)", cat: "Strategy", desc: "Problem first, before explanations." },
-  { id: "roles_accountability", label: "Roles & Accountability (Collab)", cat: "Strategy", desc: "Roles, norms, output." },
-  { id: "preclass_tasks", label: "Pre-class Tasks (Flipped)", cat: "Strategy", desc: "What learners do before class." }
-];
+    // Strategy rules (topic-agnostic)
+    const STRATEGY_RULES = {
+      direct_instruction: {
+        name: "Direct Instruction",
+        requiredKeys: ["learning_outcomes", "concept_overview", "check_understanding", "reflection"],
+        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "concept_overview", "concept_deepening", "check_understanding", "application_example", "reflection"],
+        engagementEveryMins: 15
+      },
+      pbl: {
+        name: "Problem-Based Learning (PBL)",
+        requiredKeys: ["learning_outcomes", "activity_task", "guided_question", "reflection"],
+        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "activity_task", "guided_question", "concept_overview", "framework_model", "application_example", "reflection"],
+        engagementEveryMins: 15
+      },
+      collaborative: {
+        name: "Collaborative Learning",
+        requiredKeys: ["learning_outcomes", "activity_task", "compare_evaluate", "reflection"],
+        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "guided_question", "activity_task", "compare_evaluate", "check_understanding", "reflection"],
+        engagementEveryMins: 15
+      },
+      inquiry: {
+        name: "Inquiry-Based Learning",
+        requiredKeys: ["learning_outcomes", "guided_question", "framework_model", "reflection"],
+        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "guided_question", "concept_overview", "framework_model", "check_understanding", "reflection"],
+        engagementEveryMins: 15
+      },
+      experiential: {
+        name: "Experiential Learning",
+        requiredKeys: ["learning_outcomes", "activity_task", "reflection", "application_example"],
+        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "activity_task", "reflection", "concept_overview", "application_example", "check_understanding"],
+        engagementEveryMins: 15
+      },
+      flipped: {
+        name: "Flipped Classroom",
+        requiredKeys: ["learning_outcomes", "check_understanding", "activity_task", "reflection"],
+        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "check_understanding", "activity_task", "application_example", "compare_evaluate", "reflection"],
+        engagementEveryMins: 15
+      },
+      scaffolded: {
+        name: "Scaffolded Learning",
+        requiredKeys: ["learning_outcomes", "concept_overview", "concept_deepening", "application_example"],
+        recommendedFlow: ["title_context", "learning_outcomes", "roadmap", "concept_overview", "concept_deepening", "guided_question", "application_example", "reflection"],
+        engagementEveryMins: 15
+      }
+    };
 
-const STRATEGY_RULES = {
-  direct: {
-    name: "Direct Instruction",
-    required: ["learning_outcomes", "concept_overview", "check_understanding", "reflection"],
-    recommended: ["roadmap", "concept_deepening", "guided_question"],
-    engagementEveryMins: 15
-  },
-  pbl: {
-    name: "Problem-Based Learning (PBL)",
-    required: ["learning_outcomes", "problem_brief", "guided_question", "application_example", "reflection"],
-    recommended: ["compare_evaluate", "check_understanding"],
-    engagementEveryMins: 12
-  },
-  collab: {
-    name: "Collaborative Learning",
-    required: ["learning_outcomes", "roles_accountability", "activity_task", "compare_evaluate", "reflection"],
-    recommended: ["check_understanding", "guided_question"],
-    engagementEveryMins: 12
-  },
-  inquiry: {
-    name: "Inquiry-Based Learning",
-    required: ["learning_outcomes", "guided_question", "concept_deepening", "framework_model", "reflection"],
-    recommended: ["check_understanding", "application_example"],
-    engagementEveryMins: 12
-  },
-  experiential: {
-    name: "Experiential Learning",
-    required: ["learning_outcomes", "activity_task", "reflection", "concept_overview", "application_example"],
-    recommended: ["check_understanding"],
-    engagementEveryMins: 12
-  },
-  flipped: {
-    name: "Flipped Classroom",
-    required: ["learning_outcomes", "preclass_tasks", "check_understanding", "activity_task", "application_example", "reflection"],
-    recommended: ["compare_evaluate"],
-    engagementEveryMins: 12
-  },
-  scaffolded: {
-    name: "Scaffolded Learning",
-    required: ["learning_outcomes", "concept_overview", "concept_deepening", "guided_question", "application_example"],
-    recommended: ["check_understanding", "reflection"],
-    engagementEveryMins: 15
-  }
-};
+    // Default time allocations by duration (simple heuristic)
+    function getDefaultSlideTime(durationMins) {
+      const d = Number(durationMins);
+      if (d <= 10) return 1.0;
+      if (d <= 15) return 1.5;
+      if (d <= 30) return 2.0;
+      if (d <= 60) return 3.0;
+      if (d <= 90) return 3.5;
+      return 4.0;
+    }
 
-const DEFAULTS = {
-  interactivity: "medium",
-  engagement: "medium",
-  pace: "standard"
-};
+    // Simple Bloom verb list (not exhaustive)
+    const BLOOM_VERBS = [
+      "define","describe","identify","explain","summarise","summarize","apply","analyse","analyze","evaluate","create","design",
+      "compare","contrast","justify","interpret","synthesise","synthesize","critique","demonstrate","construct","formulate"
+    ];
 
-let state = {
-  step: 0,
+    // App state
+    const state = {
+      step: 1,
+      interactivity: "medium",
+      deck: {
+        meta: {
+          title: "",
+          audience: "degree",
+          duration_mins: 15,
+          strategy: "direct_instruction",
+          interactivity: "medium",
+          assessment_context: "none",
+          genai_policy: "limited",
+          density: "standard",
+          citation_style: "apa7",
+          citation_placement: "end",
+          design_system: {
+            name: "DeckOS Standard",
+            version: "1.0.0",
+            rules: {
+              max_bullets_per_slide: 6,
+              max_chars_per_bullet_soft: 120,
+              engagement_every_mins: 15
+            }
+          },
+          created_at: new Date().toISOString()
+        },
+        inputs: {
+          learning_outcomes: [],
+          topic_outline: [],
+          references: []
+        },
+        slides: []
+      },
+      selectedSlideId: null
+    };
 
-  meta: {
-    title: "",
-    audienceLevel: "Degree",
-    duration: 15,
-    strategy: "direct",
-    interactivity: DEFAULTS.interactivity,
-    tone: "Practical",
-    assessmentContext: "none",
-    genaiPolicy: "limited",
-    includeSpeakerNotes: true,
-    enforceLOMapping: true,
-    includeRefsSlide: true
-  },
+    // Elements
+    const el = (id) => document.getElementById(id);
+    const stepEls = [el("step1"), el("step2"), el("step3"), el("step4")];
 
-  inputs: {
-    learningOutcomes: [],
-    topicTitle: "",
-    contentPoints: [],
-    references: []
-  },
+    // Step controls
+    const btnPrev = el("btnPrev");
+    const btnNext = el("btnNext");
+    const stepLabel = el("stepLabel");
+    const stepTitle = el("stepTitle");
 
-  blueprint: {
-    slides: [],
-    engagement: DEFAULTS.engagement,
-    pace: DEFAULTS.pace
-  }
-};
+    // Setup fields
+    const deckTitle = el("deckTitle");
+    const audience = el("audience");
+    const duration = el("duration");
+    const strategy = el("strategy");
+    const assessment = el("assessment");
+    const genaiPolicy = el("genaiPolicy");
+    const density = el("density");
+    const strategyRulesPreview = el("strategyRulesPreview");
 
-/* ---------- Helpers ---------- */
-function $(id) { return document.getElementById(id); }
-function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
-function uid() { return Math.random().toString(16).slice(2, 10); }
+    // Step2 fields
+    const learningOutcomes = el("learningOutcomes");
+    const topicOutline = el("topicOutline");
+    const references = el("references");
+    const citationStyle = el("citationStyle");
+    const citationPlacement = el("citationPlacement");
+    const readinessScore = el("readinessScore");
+    const readinessLabel = el("readinessLabel");
+    const readinessBar = el("readinessBar");
+    const loHints = el("loHints");
 
-function toast(msg, kind="info") {
-  const host = $("toastHost");
-  const el = document.createElement("div");
-  const color = kind==="ok" ? "bg-emerald-600" : kind==="warn" ? "bg-amber-600" : "bg-slate-900";
-  el.className = `toast ${color} text-white text-sm px-4 py-2 rounded-2xl shadow-lg flex items-center gap-2`;
-  el.innerHTML = `<i class="fa-solid fa-circle-info"></i><span>${msg}</span>`;
-  host.appendChild(el);
-  setTimeout(()=> {
-    el.style.opacity = 0;
-    el.style.transform = "translateY(10px)";
-    el.style.transition = "all .2s ease";
-    setTimeout(()=> el.remove(), 220);
-  }, 2200);
-}
+    // Blueprint
+    const btnGenerateBlueprint = el("btnGenerateBlueprint");
+    const btnAddSlide = el("btnAddSlide");
+    const blueprintList = el("blueprintList");
+    const slideCount = el("slideCount");
 
-function parseLines(text) {
-  return text
-    .split("\n")
-    .map(s => s.trim())
-    .filter(Boolean)
-    .map(s => s.replace(/^[-•\d\)\.]+\s*/, "")); // strip bullets/numbering
-}
+    // Editor
+    const selectedSlideMeta = el("selectedSlideMeta");
+    const editSlideType = el("editSlideType");
+    const editSlideTitle = el("editSlideTitle");
+    const editSlideBullets = el("editSlideBullets");
+    const editSlideTime = el("editSlideTime");
+    const editSlideLO = el("editSlideLO");
+    const editSlideNotes = el("editSlideNotes");
+    const btnRemoveSlide = el("btnRemoveSlide");
+    const btnDuplicateSlide = el("btnDuplicateSlide");
+    const btnRegenerateSlide = el("btnRegenerateSlide");
+    const slideHealth = el("slideHealth");
 
-function strategyName() {
-  return STRATEGY_RULES[state.meta.strategy]?.name ?? "Strategy";
-}
+    // Time budget
+    const timeSum = el("timeSum");
+    const timeTarget = el("timeTarget");
+    const timeBar = el("timeBar");
+    const timeHint = el("timeHint");
 
-function slideTypeById(id) {
-  return SLIDE_TYPES.find(s => s.id === id);
-}
+    // Dashboard
+    const loCoveragePct = el("loCoveragePct");
+    const loCoverageBar = el("loCoverageBar");
+    const loCount = el("loCount");
+    const engagementScore = el("engagementScore");
+    const engagementLabel = el("engagementLabel");
+    const engagementHint = el("engagementHint");
+    const timeFitPct = el("timeFitPct");
+    const timeFitBar = el("timeFitBar");
+    const timeFitDetail = el("timeFitDetail");
+    const timeFitHint = el("timeFitHint");
 
-function isEngagementType(typeId) {
-  return ["guided_question","activity_task","check_understanding","reflection","compare_evaluate"].includes(typeId);
-}
+    // Catalog
+    const catalogCards = el("catalogCards");
+    const btnInsertRequired = el("btnInsertRequired");
 
-function estimateBaseTimeByType(typeId) {
-  // Very rough, later adjusted by pace
-  const base = {
-    title_context: 1.0,
-    learning_outcomes: 1.5,
-    roadmap: 1.0,
-    concept_overview: 2.0,
-    concept_deepening: 2.0,
-    framework_model: 2.5,
-    guided_question: 1.5,
-    activity_task: 3.0,
-    check_understanding: 2.0,
-    application_example: 2.5,
-    compare_evaluate: 2.5,
-    reflection: 2.0,
-    assessment_alignment: 2.0,
-    genai_practice: 2.0,
-    references: 1.0,
-    problem_brief: 2.5,
-    roles_accountability: 2.0,
-    preclass_tasks: 1.5
-  };
-  return base[typeId] ?? 2.0;
-}
+    // Review
+    const btnRunValidation = el("btnRunValidation");
+    const validationResults = el("validationResults");
+    const specPreview = el("specPreview");
+    const btnCopySpec = el("btnCopySpec");
 
-function paceMultiplier() {
-  if (state.blueprint.pace === "fast") return 0.85;
-  if (state.blueprint.pace === "slow") return 1.15;
-  return 1.0;
-}
+    // Global actions
+    const btnDownloadSpec = el("btnDownloadSpec");
+    const btnReset = el("btnReset");
+    const btnHelp = el("btnHelp");
 
-function totalTimeMins() {
-  return state.blueprint.slides.reduce((sum, s) => sum + (Number(s.timeMins) || 0), 0);
-}
+    // Quick actions
+    const btnAutoMapLOs = el("btnAutoMapLOs");
+    const btnAutoNotes = el("btnAutoNotes");
+    const btnSuggestEngagement = el("btnSuggestEngagement");
+    const btnAutoVerbHints = el("btnAutoVerbHints");
 
-/* ---------- UI: Stepper ---------- */
-function renderStepper() {
-  const labels = ["1) Setup", "2) Inputs", "3) Blueprint", "4) Export"];
-  $("stepLabel").textContent = labels[state.step] ?? "Setup";
-  $("btnPrev").disabled = state.step === 0;
-  $("btnNext").textContent = state.step === 3 ? "Finish" : "Next";
+    // Modals
+    const helpModal = el("helpModal");
+    const btnCloseHelp = el("btnCloseHelp");
 
-  // panels
-  ["step0","step1","step2","step3"].forEach((id, idx) => {
-    $(id).classList.toggle("hidden", idx !== state.step);
-  });
+    const addSlideModal = el("addSlideModal");
+    const btnCloseAddSlide = el("btnCloseAddSlide");
+    const addSlideType = el("addSlideType");
+    const btnAddSlideConfirm = el("btnAddSlideConfirm");
 
-  // pills
-  document.querySelectorAll(".step-pill").forEach((el) => {
-    const i = Number(el.dataset.step);
-    el.className = "step-pill h-2 rounded-full " + (i <= state.step ? "bg-slate-900" : "bg-slate-200");
-  });
+    // Toast
+    const toast = el("toast");
 
-  if (state.step === 3) renderSpecPreview();
-}
+    function showToast(message) {
+      toast.textContent = message;
+      toast.style.opacity = "1";
+      toast.style.transform = "translate(-50%, 0)";
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translate(-50%, 1.5rem)";
+      }, 1600);
+    }
 
-/* ---------- UI: Catalog ---------- */
-function renderCatalog() {
-  const host = $("slideCatalog");
-  host.innerHTML = "";
-  const groups = {};
-  SLIDE_TYPES.forEach(s => {
-    if (!groups[s.cat]) groups[s.cat] = [];
-    groups[s.cat].push(s);
-  });
+    function uid() {
+      return "s_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
+    }
 
-  Object.entries(groups).forEach(([cat, items]) => {
-    const block = document.createElement("div");
-    block.className = "sm:col-span-2 mt-2";
-    block.innerHTML = `<div class="text-xs font-semibold text-slate-600">${cat}</div>`;
-    host.appendChild(block);
+    function setStep(n) {
+      state.step = Math.max(1, Math.min(4, n));
+      stepEls.forEach((s, idx) => s.classList.toggle("hidden", idx !== (state.step - 1)));
 
-    items.forEach(s => {
-      const card = document.createElement("div");
-      card.className = "p-3 rounded-xl border border-slate-200 bg-slate-50";
-      card.innerHTML = `
-        <div class="flex items-start justify-between gap-2">
-          <div>
-            <div class="text-sm font-semibold">${s.label}</div>
-            <div class="text-xs text-slate-500 mt-1">${s.desc}</div>
-          </div>
-          <span class="text-[10px] px-2 py-1 rounded-full bg-white border border-slate-200 text-slate-600">${s.id}</span>
+      btnPrev.disabled = state.step === 1;
+      btnNext.textContent = state.step === 4 ? "Finish" : "Next";
+
+      const titles = ["Deck Setup", "Inputs", "Blueprint", "Review & Export"];
+      stepLabel.textContent = `Step ${state.step} of 4`;
+      stepTitle.textContent = titles[state.step - 1];
+
+      renderAll();
+    }
+
+    // Parse inputs
+    function parseLines(text) {
+      return text
+        .split("\n")
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    function syncMetaFromUI() {
+      state.deck.meta.title = deckTitle.value.trim() || "Untitled Deck";
+      state.deck.meta.audience = audience.value;
+      state.deck.meta.duration_mins = Number(duration.value);
+      state.deck.meta.strategy = strategy.value;
+      state.deck.meta.interactivity = state.interactivity;
+      state.deck.meta.assessment_context = assessment.value;
+      state.deck.meta.genai_policy = genaiPolicy.value;
+      state.deck.meta.density = density.value;
+      state.deck.meta.citation_style = citationStyle.value;
+      state.deck.meta.citation_placement = citationPlacement.value;
+
+      // Keep engagement rule in sync
+      state.deck.meta.design_system.rules.engagement_every_mins = STRATEGY_RULES[state.deck.meta.strategy].engagementEveryMins || 15;
+    }
+
+    function syncInputsFromUI() {
+      state.deck.inputs.learning_outcomes = parseLines(learningOutcomes.value);
+      state.deck.inputs.topic_outline = parseLines(topicOutline.value);
+      state.deck.inputs.references = parseLines(references.value);
+    }
+
+    function renderStrategyRulesPreview() {
+      const rules = STRATEGY_RULES[state.deck.meta.strategy];
+      const requiredNames = rules.requiredKeys
+        .map(k => SLIDE_TYPES.find(s => s.key === k)?.name)
+        .filter(Boolean);
+
+      strategyRulesPreview.innerHTML = `
+        <div class="flex flex-col gap-1">
+          <div class="text-sm"><span class="text-slate-400">Strategy:</span> <span class="font-medium">${rules.name}</span></div>
+          <div class="text-sm"><span class="text-slate-400">Required slide types:</span> ${requiredNames.join(", ") || "—"}</div>
+          <div class="text-sm"><span class="text-slate-400">Engagement rule:</span> at least every ${rules.engagementEveryMins} mins (warning-based)</div>
         </div>
       `;
-      host.appendChild(card);
-    });
-  });
-}
-
-/* ---------- Inputs sync ---------- */
-function syncMetaFromUI() {
-  state.meta.title = $("deckTitle").value.trim();
-  state.meta.audienceLevel = $("audienceLevel").value;
-  state.meta.duration = Number($("duration").value);
-  state.meta.strategy = $("strategy").value;
-  state.meta.tone = $("tone").value;
-  state.meta.assessmentContext = $("assessmentContext").value;
-  state.meta.genaiPolicy = $("genaiPolicy").value;
-
-  state.meta.includeSpeakerNotes = $("toggleSpeakerNotes").checked;
-  state.meta.enforceLOMapping = $("toggleLOMapping").checked;
-  state.meta.includeRefsSlide = $("toggleRefs").checked;
-}
-
-function syncInputsFromUI() {
-  state.inputs.learningOutcomes = parseLines($("learningOutcomes").value);
-  state.inputs.topicTitle = $("topicTitle").value.trim();
-  state.inputs.contentPoints = parseLines($("contentPoints").value);
-  state.inputs.references = parseLines($("references").value);
-}
-
-/* ---------- LO analysis ---------- */
-const BLOOM_VERBS = [
-  "define","describe","explain","identify","summarize","outline",
-  "apply","use","demonstrate","implement",
-  "analyze","differentiate","compare","contrast",
-  "evaluate","justify","critique",
-  "create","design","develop","construct"
-];
-
-function updateLOStats() {
-  const los = parseLines($("learningOutcomes").value);
-  $("loCount").textContent = `${los.length} outcomes detected`;
-
-  let ok = 0;
-  for (const lo of los) {
-    const first = lo.split(/\s+/)[0]?.toLowerCase() || "";
-    if (BLOOM_VERBS.includes(first)) ok++;
-  }
-  const hint = $("bloomHint");
-  hint.classList.toggle("hidden", !(los.length > 0 && ok / Math.max(1, los.length) < 0.5));
-}
-
-/* ---------- Blueprint generation ---------- */
-function defaultSlideTitle(typeId) {
-  const topic = state.inputs.topicTitle || "Session";
-  const t = slideTypeById(typeId)?.label ?? "Slide";
-  const map = {
-    title_context: topic,
-    learning_outcomes: "Learning outcomes",
-    roadmap: "How we’ll work through this",
-    concept_overview: "Core concept overview",
-    concept_deepening: "Building understanding",
-    framework_model: "Framework / process",
-    guided_question: "Think: guiding question",
-    activity_task: "Activity",
-    check_understanding: "Check for understanding",
-    application_example: "Apply: worked example",
-    compare_evaluate: "Compare & evaluate",
-    reflection: "Reflect",
-    assessment_alignment: "Assessment alignment",
-    genai_practice: "Academic practice (GenAI)",
-    references: "References",
-    problem_brief: "Problem brief",
-    roles_accountability: "Roles & accountability",
-    preclass_tasks: "Before class: tasks"
-  };
-  return map[typeId] || t;
-}
-
-function generateBlueprint() {
-  syncMetaFromUI();
-  syncInputsFromUI();
-
-  const los = state.inputs.learningOutcomes;
-  const hasRefs = state.inputs.references.length > 0;
-  const includeRefs = state.meta.includeRefsSlide && hasRefs;
-  const includeGenAI = state.meta.genaiPolicy !== "prohibited"; // still could show practice slide
-  const includeAssessment = state.meta.assessmentContext !== "none";
-
-  const rules = STRATEGY_RULES[state.meta.strategy];
-  const req = rules?.required ?? ["learning_outcomes","concept_overview","reflection"];
-
-  // Base skeleton always starts with title + LOs (title optional but recommended)
-  const slides = [];
-  slides.push(makeSlide("title_context", "", "", []));
-  slides.push(makeSlide("learning_outcomes", "", los[0] ? "LO1" : "", []));
-
-  // Strategy-required slides inserted next (excluding LOs already present)
-  req.forEach(typeId => {
-    if (typeId === "learning_outcomes") return;
-    if (!slides.some(s => s.typeId === typeId)) slides.push(makeSlide(typeId));
-  });
-
-  // Add a roadmap for >= 15 mins
-  if (state.meta.duration >= 15 && !slides.some(s => s.typeId === "roadmap")) {
-    slides.splice(2, 0, makeSlide("roadmap"));
-  }
-
-  // Add conceptual build if content points exist
-  if (state.inputs.contentPoints.length > 0) {
-    // Ensure at least one concept overview
-    if (!slides.some(s => s.typeId === "concept_overview")) slides.push(makeSlide("concept_overview"));
-    // Add deepening based on duration
-    if (state.meta.duration >= 30 && slides.filter(s => s.typeId === "concept_deepening").length < 2) {
-      slides.push(makeSlide("concept_deepening"));
-      slides.push(makeSlide("concept_deepening"));
-    } else if (state.meta.duration >= 15 && !slides.some(s => s.typeId === "concept_deepening")) {
-      slides.push(makeSlide("concept_deepening"));
     }
-    // Add a framework slide for longer sessions
-    if (state.meta.duration >= 30 && !slides.some(s => s.typeId === "framework_model")) {
-      slides.push(makeSlide("framework_model"));
+
+    function renderCatalog() {
+      catalogCards.innerHTML = "";
+      SLIDE_TYPES.forEach(st => {
+        const card = document.createElement("button");
+        card.className = "text-left p-3 rounded-xl border border-white/10 bg-slate-950/40 hover:bg-white/5";
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="text-sm font-medium">${st.name}</div>
+              <div class="text-xs text-slate-400">${st.group}${st.engagement ? " • engagement" : ""}${st.required ? " • required" : ""}</div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded-full border border-white/10 bg-slate-950/60">Add</span>
+          </div>
+        `;
+        card.addEventListener("click", () => {
+          if (state.deck.slides.length === 0) setStep(3);
+          addSlide(st.key);
+          showToast(`Added: ${st.name}`);
+        });
+        catalogCards.appendChild(card);
+      });
     }
-  }
 
-  // Engagement calibration
-  state.blueprint.engagement = state.meta.interactivity; // start aligned
-  const targetEng = state.blueprint.engagement;
+    function computeReadiness() {
+      // Basic: LOs present = 50, topic outline = 30, references = 20 (optional)
+      const lo = state.deck.inputs.learning_outcomes.length;
+      const to = state.deck.inputs.topic_outline.length;
+      const ref = state.deck.inputs.references.length;
 
-  // Ensure at least one activity if medium/high
-  if ((targetEng === "medium" || targetEng === "high") && !slides.some(s => s.typeId === "activity_task")) {
-    slides.push(makeSlide("activity_task"));
-  }
-  // Ensure CFU appears at least once
-  if (!slides.some(s => s.typeId === "check_understanding")) slides.push(makeSlide("check_understanding"));
+      let score = 0;
+      if (lo > 0) score += 50;
+      if (to > 0) score += 30;
+      if (ref > 0) score += 20;
 
-  // Add application/evaluation if duration allows
-  if (state.meta.duration >= 15 && !slides.some(s => s.typeId === "application_example")) {
-    slides.push(makeSlide("application_example"));
-  }
-  if (state.meta.duration >= 30 && !slides.some(s => s.typeId === "compare_evaluate")) {
-    slides.push(makeSlide("compare_evaluate"));
-  }
+      // If GenAI policy is limited/allowed, references slightly more valuable (soft)
+      if ((state.deck.meta.genai_policy === "allowed" || state.deck.meta.genai_policy === "limited") && ref > 0) {
+        score = Math.min(100, score + 5);
+      }
 
-  // Reflection near end
-  if (!slides.some(s => s.typeId === "reflection")) slides.push(makeSlide("reflection"));
+      let label = "Add learning outcomes to begin";
+      if (score >= 50 && score < 80) label = "Good start — add topic points & refine outcomes";
+      if (score >= 80) label = "Ready — generate blueprint";
 
-  // Academic practice slides near end
-  if (includeAssessment && !slides.some(s => s.typeId === "assessment_alignment")) {
-    slides.push(makeSlide("assessment_alignment"));
-  }
-  if (includeGenAI && !slides.some(s => s.typeId === "genai_practice")) {
-    slides.push(makeSlide("genai_practice"));
-  }
-  if (includeRefs && !slides.some(s => s.typeId === "references")) {
-    slides.push(makeSlide("references"));
-  }
-
-  // Assign LO mapping heuristics
-  const loTags = los.map((_, idx) => `LO${idx+1}`);
-  let loIdx = 0;
-  slides.forEach((s, i) => {
-    if (!state.meta.enforceLOMapping) return;
-    // Map core learning slides to outcomes, rotate
-    if (["concept_overview","concept_deepening","framework_model","application_example","compare_evaluate","activity_task","check_understanding"].includes(s.typeId)) {
-      s.loTag = loTags[loIdx % Math.max(1, loTags.length)] || "";
-      loIdx++;
-    } else if (s.typeId === "learning_outcomes") {
-      s.loTag = loTags[0] || "";
-    } else {
-      s.loTag = s.loTag || "";
+      return { score: Math.min(100, score), label };
     }
-  });
 
-  // Fill bullets from content points (light touch)
-  const points = state.inputs.contentPoints.slice(0, 12);
-  slides.forEach(s => {
-    if (["concept_overview","concept_deepening","framework_model"].includes(s.typeId) && s.bullets.length === 0) {
-      s.bullets = points.slice(0, 5);
+    function renderReadiness() {
+      const { score, label } = computeReadiness();
+      readinessScore.textContent = `${score}%`;
+      readinessLabel.textContent = label;
+      readinessBar.style.width = `${score}%`;
     }
-    if (s.typeId === "application_example" && s.bullets.length === 0) {
-      s.bullets = [
-        "Apply the concept to a generic scenario",
-        "Explain reasoning and decisions",
-        "Highlight common pitfalls and best practices"
+
+    function bloomVerbHint(loText) {
+      const s = (loText || "").trim().toLowerCase();
+      const firstWord = s.split(/\s+/)[0] || "";
+      const ok = BLOOM_VERBS.includes(firstWord);
+      return { firstWord, ok };
+    }
+
+    function renderLOHints() {
+      const los = state.deck.inputs.learning_outcomes;
+      if (!los.length) {
+        loHints.textContent = "Tip: Start each LO with an action verb (e.g., Analyse, Evaluate, Design).";
+        return;
+      }
+      const issues = [];
+      los.forEach((line, idx) => {
+        const { firstWord, ok } = bloomVerbHint(line);
+        if (!ok) issues.push(`LO${idx + 1}: starts with “${firstWord || "—"}” (consider an action verb)`);
+      });
+      loHints.innerHTML = issues.length
+        ? `<span class="text-amber-200">Verb check:</span> ${issues.join(" • ")}`
+        : `<span class="text-cyan-300">Verb check:</span> Looks good — action verbs detected.`;
+    }
+
+    function estimateEngagementDensity() {
+      // Engagement slides count vs duration
+      const d = state.deck.meta.duration_mins;
+      const engagementSlides = state.deck.slides.filter(s => getSlideType(s.type)?.engagement).length;
+      const per15 = d / 15;
+      const density = per15 > 0 ? (engagementSlides / per15) : engagementSlides;
+
+      // simple label
+      let label = "—";
+      if (state.deck.slides.length === 0) return { engagementSlides, label, hint: "Add slides to compute." };
+
+      if (density < 0.7) label = "Low";
+      else if (density < 1.2) label = "Balanced";
+      else label = "High";
+
+      const hint = `${engagementSlides} engagement slide(s) across ${d} mins.`;
+      return { engagementSlides, label, hint };
+    }
+
+    function getSlideType(key) {
+      return SLIDE_TYPES.find(s => s.key === key);
+    }
+
+    function addSlide(typeKey, insertIndex = null) {
+      const st = getSlideType(typeKey);
+      const loList = state.deck.inputs.learning_outcomes;
+      const defaultLO = loList.length ? `LO1` : null;
+
+      const slide = {
+        id: uid(),
+        type: typeKey,
+        title: st?.defaultTitle || "Slide title",
+        bullets: (st?.defaultBullets || []).slice(0, 6),
+        speaker_notes: "",
+        lo_tag: defaultLO,
+        time_mins: getDefaultSlideTime(state.deck.meta.duration_mins),
+        tags: {
+          group: st?.group || "General",
+          engagement: !!st?.engagement
+        }
+      };
+
+      if (insertIndex === null || insertIndex < 0 || insertIndex > state.deck.slides.length) {
+        state.deck.slides.push(slide);
+      } else {
+        state.deck.slides.splice(insertIndex, 0, slide);
+      }
+
+      state.selectedSlideId = slide.id;
+      renderAll();
+      selectSlide(slide.id);
+    }
+
+    function removeSlide(id) {
+      const idx = state.deck.slides.findIndex(s => s.id === id);
+      if (idx >= 0) state.deck.slides.splice(idx, 1);
+      if (state.selectedSlideId === id) state.selectedSlideId = state.deck.slides[0]?.id || null;
+      renderAll();
+      if (state.selectedSlideId) selectSlide(state.selectedSlideId);
+      else clearEditor();
+    }
+
+    function duplicateSlide(id) {
+      const s = state.deck.slides.find(x => x.id === id);
+      if (!s) return;
+      const copy = JSON.parse(JSON.stringify(s));
+      copy.id = uid();
+      const idx = state.deck.slides.findIndex(x => x.id === id);
+      state.deck.slides.splice(idx + 1, 0, copy);
+      state.selectedSlideId = copy.id;
+      renderAll();
+      selectSlide(copy.id);
+    }
+
+    function requiredSlidesForCurrentMeta() {
+      const rules = STRATEGY_RULES[state.deck.meta.strategy];
+      const required = new Set();
+
+      // Always include foundation required
+      SLIDE_TYPES.filter(s => s.required).forEach(s => required.add(s.key));
+
+      // Strategy required
+      rules.requiredKeys.forEach(k => required.add(k));
+
+      // Assessment context adds assessment alignment
+      if (state.deck.meta.assessment_context !== "none") required.add("assessment_alignment");
+
+      // GenAI policy adds genai slide (if allowed/limited)
+      if (state.deck.meta.genai_policy === "allowed" || state.deck.meta.genai_policy === "limited") required.add("genai_practice");
+
+      // References add references slide if placement is end and refs exist
+      if (state.deck.inputs.references.length && state.deck.meta.citation_placement === "end") required.add("references_slide");
+
+      return Array.from(required);
+    }
+
+    function insertRequiredSlides() {
+      const needed = requiredSlidesForCurrentMeta();
+      const existing = new Set(state.deck.slides.map(s => s.type));
+      const toAdd = needed.filter(k => !existing.has(k));
+
+      // Insert in sensible order: foundation first, then rest
+      const order = [
+        "title_context",
+        "learning_outcomes",
+        "roadmap",
+        "concept_overview",
+        "concept_deepening",
+        "framework_model",
+        "guided_question",
+        "activity_task",
+        "check_understanding",
+        "application_example",
+        "compare_evaluate",
+        "reflection",
+        "assessment_alignment",
+        "genai_practice",
+        "references_slide"
       ];
+
+      toAdd.sort((a,b) => order.indexOf(a) - order.indexOf(b));
+
+      // Insert foundation slides at start
+      let insertAt = 0;
+      for (const k of toAdd) {
+        const isFoundation = ["title_context","learning_outcomes","roadmap"].includes(k);
+        if (isFoundation) {
+          addSlide(k, insertAt);
+          insertAt++;
+        } else {
+          addSlide(k);
+        }
+      }
     }
-    if (s.typeId === "check_understanding" && s.bullets.length === 0) {
-      s.bullets = ["Quick diagnostic question", "What would you do next?", "Why?"];
-    }
-    if (s.typeId === "reflection" && s.bullets.length === 0) {
-      s.bullets = ["What changed in your understanding?", "What will you try next time?", "What is still unclear?"];
-    }
-    if (s.typeId === "genai_practice" && s.bullets.length === 0) {
-      s.bullets = state.meta.genaiPolicy === "allowed"
-        ? ["Permitted: brainstorming, outlining, feedback", "Required: cite tool use if policy demands", "Prohibited: misrepresentation of authorship"]
-        : ["Permitted: limited support (e.g., language clarity)", "Required: disclose use", "Prohibited: generating substantive assessed outputs"];
-    }
-    if (s.typeId === "assessment_alignment" && s.bullets.length === 0) {
-      s.bullets = ["Align tasks to outcomes", "Use transparent criteria and exemplars", "Build checks for authenticity"];
-    }
-    if (s.typeId === "references" && s.bullets.length === 0) {
-      s.bullets = state.inputs.references.slice(0, 8);
-    }
-  });
 
-  // Time assignment based on pace & duration fit
-  slides.forEach(s => {
-    s.timeMins = roundToHalf(estimateBaseTimeByType(s.typeId) * paceMultiplier());
-  });
-
-  state.blueprint.slides = slides;
-
-  // Nudge time fit: scale times to fit duration while preserving proportions
-  autoScaleTimesToFit();
-
-  toast("Blueprint generated.", "ok");
-  state.step = 2;
-  renderAll();
-}
-
-function makeSlide(typeId, title="", loTag="", bullets=[]) {
-  const t = title || defaultSlideTitle(typeId);
-  return {
-    id: uid(),
-    typeId,
-    title: t,
-    loTag: loTag || "",
-    bullets: bullets || [],
-    speakerNotes: state.meta.includeSpeakerNotes ? defaultSpeakerNotes(typeId) : "",
-    timeMins: 2
-  };
-}
-
-function defaultSpeakerNotes(typeId) {
-  const s = strategyName();
-  const hints = {
-    title_context: `Set expectations: purpose, audience, timing, and approach (${s}).`,
-    learning_outcomes: "Read outcomes and clarify what evidence of learning looks like.",
-    roadmap: "Walk through the flow; highlight where interaction happens.",
-    concept_overview: "Explain the core idea in plain language; anchor with a simple example.",
-    concept_deepening: "Add nuance and address common misconceptions.",
-    framework_model: "Introduce the framework; explain how parts relate; keep it visual-first.",
-    guided_question: "Give 20–30 seconds of think time before sharing.",
-    activity_task: "State task, timebox, output format, and success criteria.",
-    check_understanding: "Use a quick diagnostic; respond to misconceptions, not just answers.",
-    application_example: "Model the reasoning process; make decisions explicit.",
-    compare_evaluate: "Invite judgment; ask learners to justify criteria.",
-    reflection: "Prompt transfer: what will you do differently next time?",
-    assessment_alignment: "Connect outcomes → criteria; explain what ‘good’ looks like.",
-    genai_practice: "Clarify acceptable use; emphasize transparency and integrity.",
-    references: "Point to core sources; invite further reading.",
-    problem_brief: "Present the problem; clarify constraints and expected outputs.",
-    roles_accountability: "Assign roles; define accountability and how output is assessed.",
-    preclass_tasks: "Explain pre-work and how it will be used in class."
-  };
-  return hints[typeId] || "Facilitate the slide following the house style and timing.";
-}
-
-function roundToHalf(n) { return Math.round(n * 2) / 2; }
-
-function autoScaleTimesToFit() {
-  const desired = state.meta.duration;
-  const slides = state.blueprint.slides;
-  if (!slides.length) return;
-
-  let total = totalTimeMins();
-  if (total === 0) return;
-
-  // If within +/-20%, keep it.
-  if (Math.abs(total - desired) / desired <= 0.2) return;
-
-  const scale = desired / total;
-  slides.forEach(s => {
-    // Keep title + refs min time
-    const min = (s.typeId === "title_context" || s.typeId === "references") ? 0.5 : 1.0;
-    const max = 6.0;
-    s.timeMins = clamp(roundToHalf((Number(s.timeMins) || 2) * scale), min, max);
-  });
-}
-
-/* ---------- Blueprint rendering ---------- */
-function renderSlidesList() {
-  const host = $("slidesList");
-  host.innerHTML = "";
-
-  if (!state.blueprint.slides.length) {
-    host.innerHTML = `
-      <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-600">
-        No slides yet. Go to <span class="font-semibold">Inputs</span> and generate a blueprint.
-      </div>
-    `;
-    return;
-  }
-
-  state.blueprint.slides.forEach((s, idx) => {
-    const type = slideTypeById(s.typeId);
-    const isReq = STRATEGY_RULES[state.meta.strategy]?.required?.includes(s.typeId);
-    const chip = isReq ? `<span class="text-[10px] px-2 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700">required</span>` : "";
-
-    const card = document.createElement("div");
-    card.className = "p-3 rounded-2xl border border-slate-200 bg-white shadow-sm";
-    card.setAttribute("draggable", "true");
-    card.dataset.slideId = s.id;
-
-    card.innerHTML = `
-      <div class="flex items-start justify-between gap-3">
-        <div class="flex items-start gap-3 flex-1">
-          <div class="drag-hint w-9 h-9 rounded-xl border border-slate-200 bg-slate-50 grid place-items-center text-slate-500">
-            <i class="fa-solid fa-grip-vertical"></i>
-          </div>
-          <div class="flex-1">
-            <div class="flex items-center gap-2 flex-wrap">
-              <div class="text-sm font-semibold">${idx+1}. ${escapeHtml(s.title)}</div>
-              <span class="text-[10px] px-2 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">${type?.label ?? s.typeId}</span>
-              ${chip}
-              ${s.loTag ? `<span class="text-[10px] px-2 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700">${escapeHtml(s.loTag)}</span>` : ``}
-            </div>
-
-            <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div>
-                <label class="text-xs text-slate-500">Type</label>
-                <select class="w-full mt-1 px-2 py-2 rounded-xl border border-slate-200 text-sm slideTypeSelect" data-slide-id="${s.id}">
-                  ${SLIDE_TYPES.map(t => `<option value="${t.id}" ${t.id===s.typeId?"selected":""}>${t.label}</option>`).join("")}
-                </select>
-              </div>
-              <div>
-                <label class="text-xs text-slate-500">LO mapping</label>
-                <select class="w-full mt-1 px-2 py-2 rounded-xl border border-slate-200 text-sm slideLOSelect" data-slide-id="${s.id}">
-                  <option value="">(none)</option>
-                  ${state.inputs.learningOutcomes.map((_, i) => {
-                    const tag = `LO${i+1}`;
-                    return `<option value="${tag}" ${tag===s.loTag?"selected":""}>${tag}</option>`;
-                  }).join("")}
-                </select>
-              </div>
-              <div>
-                <label class="text-xs text-slate-500">Time (mins)</label>
-                <input type="number" min="0" step="0.5" value="${s.timeMins}"
-                  class="w-full mt-1 px-2 py-2 rounded-xl border border-slate-200 text-sm slideTimeInput"
-                  data-slide-id="${s.id}"/>
-              </div>
-            </div>
-
-            <div class="mt-2">
-              <label class="text-xs text-slate-500">Bullets</label>
-              <textarea rows="3" class="mt-1 w-full px-2 py-2 rounded-xl border border-slate-200 text-sm soft-scroll slideBulletsInput"
-                data-slide-id="${s.id}" placeholder="- bullet">${escapeHtml(s.bullets.join("\n"))}</textarea>
-              <div class="mt-1 flex items-center justify-between text-xs text-slate-500">
-                <span>${s.bullets.length} bullets</span>
-                <span class="${s.bullets.length>6 ? 'text-amber-700' : ''}">${s.bullets.length>6 ? 'Consider splitting (max ~6)' : ''}</span>
-              </div>
-            </div>
-
-            ${state.meta.includeSpeakerNotes ? `
-              <div class="mt-2">
-                <label class="text-xs text-slate-500">Speaker notes</label>
-                <textarea rows="3" class="mt-1 w-full px-2 py-2 rounded-xl border border-slate-200 text-sm soft-scroll slideNotesInput"
-                  data-slide-id="${s.id}" placeholder="Facilitator script">${escapeHtml(s.speakerNotes || "")}</textarea>
-              </div>` : ``}
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <button class="btnDel w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 grid place-items-center"
-            data-slide-id="${s.id}" title="Delete">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-          <button class="btn
+    function generateBlueprint() {
+      // Generate from recommended flow
+      const rules = STRATEGY_RULES[state.deck.meta.strategy];
+      const flow
